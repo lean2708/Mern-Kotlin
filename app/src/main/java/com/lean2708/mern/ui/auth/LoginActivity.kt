@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.ActivityLoginBinding
 import com.lean2708.mern.repository.AuthRepository
+import com.lean2708.mern.ui.home.activity.MainActivity
 import com.lean2708.mern.ui.viewmodel.AuthViewModel
 import com.lean2708.mern.ui.viewmodel.AuthViewModelFactory
 
@@ -50,15 +51,19 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    // Bên trong file ui/auth/LoginActivity.kt
+
     private fun setupObservers() {
         viewModel.loginResult.observe(this) { result ->
             setLoading(false)
             result.onSuccess { response ->
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
-                // TODO: Lưu token (response.data) và chuyển sang màn hình chính
-                // ví dụ: saveToken(response.data)
-                // startActivity(Intent(this, MainActivity::class.java))
-                // finish()
+
+                // TODO: Lưu token (response.data)
+
+                val intent = Intent(this, MainActivity::class.java) // Dòng mới
+                startActivity(intent)
+                finish()
             }
             result.onFailure {
                 Toast.makeText(this, "Đăng nhập thất bại: ${it.message}", Toast.LENGTH_LONG).show()

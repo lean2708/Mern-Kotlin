@@ -81,4 +81,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("com.google.android.material:material:1.12.0")
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("androidx.fragment:fragment-ktx:1.7.1")
+    implementation("com.google.android.material:material:1.12.0")
+// Cung cấp CardView và các thuộc tính cardCornerRadius, cardElevation
+    implementation("androidx.cardview:cardview:1.0.0")
 }

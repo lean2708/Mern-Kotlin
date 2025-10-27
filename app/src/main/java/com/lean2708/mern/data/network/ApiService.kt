@@ -3,6 +3,7 @@ package com.lean2708.mern.data.network
 import com.lean2708.mern.data.model.*
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface ApiService {
@@ -31,4 +32,17 @@ interface ApiService {
     suspend fun resetPassword(
         @Body resetPasswordRequest: ResetPasswordRequest
     ): Response<GenericResponse>
+
+
+    @GET("get-categoryProduct")
+    suspend fun getCategoryProducts(): Response<ProductListResponse>
+
+
+    @POST("category-product")
+    suspend fun getProductsForCategory(
+        @Body categoryRequest: CategoryRequest
+    ): Response<ProductListResponse>
+
+
+
 }

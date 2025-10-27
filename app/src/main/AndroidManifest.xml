@@ -28,6 +28,11 @@
         <activity android:name=".ui.auth.RegisterActivity" />
         <activity android:name=".ui.auth.ForgotPasswordActivity" />
 
+        <activity
+            android:name=".ui.home.activity.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Mern" />
+
     </application>
 
 </manifest>
