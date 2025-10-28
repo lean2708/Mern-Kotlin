@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import com.lean2708.mern.data.local.SessionManager
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.ActivityLoginBinding
 import com.lean2708.mern.repository.AuthRepository
@@ -16,6 +17,7 @@ import com.lean2708.mern.ui.viewmodel.AuthViewModelFactory
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
+    private val sessionManager by lazy { SessionManager(this) }
     private val viewModel: AuthViewModel by viewModels {
         AuthViewModelFactory(AuthRepository(RetrofitInstance.api))
     }
@@ -60,6 +62,7 @@ class LoginActivity : AppCompatActivity() {
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
 
                 // TODO: Lưu token (response.data)
+                sessionManager.saveAuthToken(response.data)
 
                 val intent = Intent(this, MainActivity::class.java) // Dòng mới
                 startActivity(intent)

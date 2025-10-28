@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.lean2708.mern.R
+import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.ActivityMainBinding
 import com.lean2708.mern.ui.cart.CartFragment
 import com.lean2708.mern.ui.home.fragment.HomeFragment
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
 
         // Đặt Fragment mặc định là HomeFragment
         loadFragment(homeFragment, "Trang chủ")
@@ -59,5 +61,12 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
+    }
+
+    fun updateToolbarTitle(title: String) {
+        // Vì bạn đã xóa Toolbar, hàm này có thể trống.
+        // Tuy nhiên, nó phải tồn tại để ProfileFragment có thể gọi nó.
+        // Nếu sau này bạn muốn hiển thị tiêu đề ở đâu đó (ví dụ: một TextView),
+        // bạn sẽ đặt: binding.tvTitle.text = title ở đây.
     }
 }

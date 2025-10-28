@@ -46,10 +46,6 @@ class ProductAdapter : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() 
                     .load(product.productImage[0])
                     .into(imgProduct)
             }
-
-            btnAddToCart.setOnClickListener {
-                // TODO: Xử lý logic thêm vào giỏ hàng
-            }
         }
     }
 
