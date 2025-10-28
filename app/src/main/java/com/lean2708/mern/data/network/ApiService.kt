@@ -69,4 +69,22 @@ interface ApiService {
 
     @DELETE("address/{addressId}")
     suspend fun deleteAddress(@Path("addressId") addressId: String): Response<GenericResponse>
+
+    @POST("product-details")
+    suspend fun getProductDetails(@Body request: ProductDetailRequest): Response<DataResponse<Product>>
+
+    @POST("addtoCart")
+    suspend fun addToCart(@Body request: AddToCartRequest): Response<AddToCartResponse>
+
+    @GET("countAddToCartProduct") // API 1: Đếm số lượng
+    suspend fun getCartCount(): Response<CartCountResponse>
+
+    @GET("view-cart-product") // API 2: Xem chi tiết giỏ hàng
+    suspend fun viewCartProducts(): Response<ViewCartResponse>
+
+    @POST("update-cart-product") // API 3: Cập nhật số lượng
+    suspend fun updateCartProduct(@Body request: UpdateCartRequest): Response<GenericResponse>
+
+    @POST("delete-cart-product") // API 4: Xóa sản phẩm
+    suspend fun deleteCartProduct(@Body request: DeleteCartRequest): Response<GenericResponse>
 }

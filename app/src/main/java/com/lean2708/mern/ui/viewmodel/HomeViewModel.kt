@@ -4,6 +4,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lean2708.mern.data.model.CartItem
+import com.lean2708.mern.data.model.Product
 import com.lean2708.mern.repository.HomeRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -62,6 +64,82 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
                 }
             } catch (e: Exception) {
                 _homeItems.postValue(Resource.Error(e.message ?: "Lỗi không xác định"))
+            }
+        }
+    }
+
+
+
+    private val _productDetails = MutableLiveData<Resource<Product>>()
+    val productDetails: LiveData<Resource<Product>> = _productDetails
+
+    // MỚI: LiveData cho sản phẩm đề xuất
+    private val _suggestedProducts = MutableLiveData<Resource<List<Product>>>()
+    val suggestedProducts: LiveData<Resource<List<Product>>> = _suggestedProducts
+
+    // HÀM MỚI: Lấy chi tiết sản phẩm và sản phẩm đề xuất
+    fun fetchProductDetails(id: String) {
+        _productDetails.postValue(Resource.Loading())
+        _suggestedProducts.postValue(Resource.Loading())
+
+        viewModelScope.launch {
+            try {
+                // SỬ DỤNG HÀM getProductDetails (API 1)
+                val detailResponse = repository.getProductDetails(id)
+
+                if (detailResponse.isSuccessful && detailResponse.body()?.success == true) {
+                    val product = detailResponse.body()!!.data
+                    _productDetails.postValue(Resource.Success(product))
+
+                    // GỌI HÀM LẤY SẢN PHẨM TƯƠNG TỰ (API 2)
+                    fetchSuggestedProducts(product.category, productIdToExclude = id)
+                } else {
+                    _productDetails.postValue(Resource.Error("Không tải được chi tiết: ${detailResponse.message()}"))
+                }
+            } catch (e: Exception) {
+                _productDetails.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
+            }
+        }
+    }
+
+    // HÀM MỚI: Lấy sản phẩm đề xuất theo Category
+    fun fetchSuggestedProducts(category: String, productIdToExclude: String) {
+        viewModelScope.launch {
+            try {
+                val suggestedResponse = repository.getProductsForCategory(category)
+
+                if (suggestedResponse.isSuccessful && suggestedResponse.body()?.success == true) {
+                    // Lọc sản phẩm hiện tại ra khỏi danh sách đề xuất
+                    val filteredList = suggestedResponse.body()!!.data.filter { it._id != productIdToExclude }
+                    _suggestedProducts.postValue(Resource.Success(filteredList))
+                } else {
+                    _suggestedProducts.postValue(Resource.Error("Không tải được sản phẩm đề xuất."))
+                }
+            } catch (e: Exception) {
+                _suggestedProducts.postValue(Resource.Error(e.message ?: "Lỗi mạng đề xuất"))
+            }
+        }
+    }
+
+
+
+    private val _addToCartResult = MutableLiveData<Resource<CartItem>>()
+    val addToCartResult: LiveData<Resource<CartItem>> = _addToCartResult
+
+    // --- HÀM ADD TO CART ---
+    fun addToCart(productId: String) {
+        _addToCartResult.postValue(Resource.Loading())
+        viewModelScope.launch {
+            try {
+                val response = repository.addToCart(productId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _addToCartResult.postValue(Resource.Success(response.body()!!.data))
+                } else {
+                    // Dùng GenericResponse message nếu response body thất bại
+                    _addToCartResult.postValue(Resource.Error(response.body()?.message ?: "Thêm vào giỏ thất bại"))
+                }
+            } catch (e: Exception) {
+                _addToCartResult.postValue(Resource.Error(e.message ?: "Lỗi mạng khi thêm giỏ hàng"))
             }
         }
     }

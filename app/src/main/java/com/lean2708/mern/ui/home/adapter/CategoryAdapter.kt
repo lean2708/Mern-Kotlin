@@ -9,12 +9,26 @@ import com.bumptech.glide.Glide
 import com.lean2708.mern.data.model.Product
 import com.lean2708.mern.databinding.ItemCategoryBinding
 
-class CategoryAdapter : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>() {
+class CategoryAdapter(
+    // 1. Thêm listener click vào constructor chính
+    private val onProductClick: (Product) -> Unit
+) : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>() {
 
-    inner class CategoryViewHolder(val binding: ItemCategoryBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class CategoryViewHolder(val binding: ItemCategoryBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            // 2. Xử lý sự kiện click trên toàn bộ item
+            binding.root.setOnClickListener {
+                if (adapterPosition != RecyclerView.NO_POSITION) {
+                    // Gọi callback với đối tượng Product (đại diện cho Category)
+                    onProductClick(differ.currentList[adapterPosition])
+                }
+            }
+        }
+    }
 
     private val diffCallback = object : DiffUtil.ItemCallback<Product>() {
         override fun areItemsTheSame(oldItem: Product, newItem: Product): Boolean {
+            // Sửa lỗi Unresolved reference '_id' (nếu có)
             return oldItem._id == newItem._id
         }
         override fun areContentsTheSame(oldItem: Product, newItem: Product): Boolean {
@@ -34,6 +48,7 @@ class CategoryAdapter : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>
         val product = differ.currentList[position]
         holder.binding.apply {
             tvCategoryName.text = product.category
+
             // Lấy ảnh đầu tiên trong mảng ảnh
             if (product.productImage.isNotEmpty()) {
                 Glide.with(holder.itemView.context)

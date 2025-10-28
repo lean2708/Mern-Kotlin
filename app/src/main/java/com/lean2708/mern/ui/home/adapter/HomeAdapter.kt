@@ -5,11 +5,15 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.lean2708.mern.data.model.Product
 import com.lean2708.mern.databinding.ItemHomeCategoriesBinding
 import com.lean2708.mern.databinding.ItemHomeProductSectionBinding
 import com.lean2708.mern.ui.viewmodel.HomeDisplayItem
 
-class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class HomeAdapter(
+    // Bổ sung listener vào constructor chính
+    private val onProductClick: (String) -> Unit
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // Định nghĩa 2 loại ViewType
     companion object {
@@ -19,7 +23,11 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // ViewHolder cho mục Category
     inner class CategorySectionViewHolder(val binding: ItemHomeCategoriesBinding) : RecyclerView.ViewHolder(binding.root) {
-        private val categoryAdapter = CategoryAdapter()
+        // Giả định CategoryAdapter cũng cần listener nếu bạn muốn click vào category để lọc
+        // Hiện tại: giữ nguyên, không cần truyền listener vào CategoryAdapter
+        private val categoryAdapter = CategoryAdapter(onProductClick = { product ->
+            onProductClick(product._id) // Dùng tạm listener nếu bạn muốn click vào sản phẩm đại diện
+        })
         init {
             binding.rvCategories.adapter = categoryAdapter
         }
@@ -30,7 +38,10 @@ class HomeAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // ViewHolder cho mục Product
     inner class ProductSectionViewHolder(val binding: ItemHomeProductSectionBinding) : RecyclerView.ViewHolder(binding.root) {
-        private val productAdapter = ProductAdapter()
+        // Truyền listener vào ProductAdapter
+        private val productAdapter = ProductAdapter(onProductClick = { product ->
+            onProductClick(product._id) // Gọi listener chính với Product ID
+        })
         init {
             binding.rvProducts.adapter = productAdapter
         }

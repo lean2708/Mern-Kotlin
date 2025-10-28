@@ -11,9 +11,22 @@ import com.lean2708.mern.databinding.ItemProductBinding
 import java.text.NumberFormat
 import java.util.Locale
 
-class ProductAdapter : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() {
+class ProductAdapter(
+    // Thêm listener click vào constructor chính
+    private val onProductClick: (Product) -> Unit
+) : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() { // <-- Đảm bảo class này không bị đóng
 
-    inner class ProductViewHolder(val binding: ItemProductBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class ProductViewHolder(val binding: ItemProductBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            // Khởi tạo click listener ở đây
+            binding.root.setOnClickListener {
+                // Đảm bảo adapterPosition hợp lệ trước khi gọi
+                if (adapterPosition != RecyclerView.NO_POSITION) {
+                    onProductClick(differ.currentList[adapterPosition])
+                }
+            }
+        }
+    }
 
     private val diffCallback = object : DiffUtil.ItemCallback<Product>() {
         override fun areItemsTheSame(oldItem: Product, newItem: Product): Boolean {
