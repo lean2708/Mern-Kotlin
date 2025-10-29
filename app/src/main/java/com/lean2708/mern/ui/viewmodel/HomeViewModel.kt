@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lean2708.mern.data.model.CartItem
 import com.lean2708.mern.data.model.Product
+import com.lean2708.mern.data.model.ProductReview
 import com.lean2708.mern.repository.HomeRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -77,6 +78,9 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
     private val _suggestedProducts = MutableLiveData<Resource<List<Product>>>()
     val suggestedProducts: LiveData<Resource<List<Product>>> = _suggestedProducts
 
+    private val _productReviews = MutableLiveData<Resource<List<ProductReview>>>()
+    val productReviews: LiveData<Resource<List<ProductReview>>> = _productReviews
+
     // HÀM MỚI: Lấy chi tiết sản phẩm và sản phẩm đề xuất
     fun fetchProductDetails(id: String) {
         _productDetails.postValue(Resource.Loading())
@@ -93,11 +97,27 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
 
                     // GỌI HÀM LẤY SẢN PHẨM TƯƠNG TỰ (API 2)
                     fetchSuggestedProducts(product.category, productIdToExclude = id)
+                    fetchProductReviews(id)
                 } else {
                     _productDetails.postValue(Resource.Error("Không tải được chi tiết: ${detailResponse.message()}"))
                 }
             } catch (e: Exception) {
                 _productDetails.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
+            }
+        }
+    }
+
+    private fun fetchProductReviews(productId: String) {
+        viewModelScope.launch {
+            try {
+                val response = repository.getProductReviews(productId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _productReviews.postValue(Resource.Success(response.body()!!.data))
+                } else {
+                    _productReviews.postValue(Resource.Error("Không tải được reviews."))
+                }
+            } catch (e: Exception) {
+                _productReviews.postValue(Resource.Error("Lỗi mạng Reviews."))
             }
         }
     }
@@ -186,4 +206,43 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
             }
         }
     }
+
+
+
+    private val _loadAllReviews = MutableLiveData<Boolean>()
+    val loadAllReviews: LiveData<Boolean> = _loadAllReviews
+
+    // TẢI TOÀN BỘ REVIEWS (CHỨC NĂNG MỚI)
+    fun loadAllReviewsNow(productId: String) {
+        _loadAllReviews.value = true // Kích hoạt UI
+        fetchProductReviews(productId, loadAll = true) // Gọi hàm fetch chính với cờ loadAll
+    }
+
+    fun fetchProductReviews(productId: String, loadAll: Boolean = false) {
+
+        if (!loadAll) _productReviews.postValue(Resource.Loading())
+
+        viewModelScope.launch {
+            try {
+                val response = repository.getProductReviews(productId)
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val reviews = response.body()!!.data
+
+                    val reviewsToSend = if (!loadAll && reviews.size > 5) {
+                        reviews.take(5) // Lấy 5 reviews đầu tiên
+                    } else {
+                        reviews
+                    }
+
+                    _productReviews.postValue(Resource.Success(reviewsToSend))
+                } else {
+                    _productReviews.postValue(Resource.Error("Không tải được reviews."))
+                }
+            } catch (e: Exception) {
+                _productReviews.postValue(Resource.Error("Lỗi mạng Reviews."))
+            }
+        }
+    }
+
 }

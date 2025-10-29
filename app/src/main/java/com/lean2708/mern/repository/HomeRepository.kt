@@ -9,15 +9,13 @@ class HomeRepository(private val apiService: ApiService) {
 
     suspend fun getCategoryProducts() = apiService.getCategoryProducts()
 
-    suspend fun getProductsForCategory(categoryName: String) =
-        apiService.getProductsForCategory(CategoryRequest(categoryName))
+    suspend fun getProductsForCategory(categoryName: String) = apiService.getProductsForCategory(CategoryRequest(categoryName))
 
-    suspend fun getProductDetails(productId: String) =
-        apiService.getProductDetails(ProductDetailRequest(productId))
+    suspend fun getProductDetails(productId: String) = apiService.getProductDetails(ProductDetailRequest(productId))
 
-    suspend fun addToCart(productId: String) =
-        apiService.addToCart(AddToCartRequest(productId))
-
+    suspend fun addToCart(productId: String) = apiService.addToCart(AddToCartRequest(productId))
 
     suspend fun searchProducts(query: String) = apiService.searchProducts(query)
+
+    suspend fun getProductReviews(productId: String) = apiService.getProductReviews(productId)
 }

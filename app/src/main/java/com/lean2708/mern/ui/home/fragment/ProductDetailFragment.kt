@@ -9,27 +9,37 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
+import com.google.android.material.tabs.TabLayoutMediator
 import com.lean2708.mern.R
 import com.lean2708.mern.data.model.Product
+import com.lean2708.mern.data.model.ProductReview
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentProductDetailBinding
 import com.lean2708.mern.repository.HomeRepository
+import com.lean2708.mern.ui.home.adapter.ImageSliderAdapter
 import com.lean2708.mern.ui.home.adapter.ProductAdapter
+import com.lean2708.mern.ui.home.adapter.ReviewAdapter
 import com.lean2708.mern.ui.viewmodel.HomeViewModel
 import com.lean2708.mern.ui.viewmodel.HomeViewModelFactory
 import com.lean2708.mern.ui.viewmodel.Resource
 import java.text.NumberFormat
 import java.util.Locale
+import com.lean2708.mern.data.local.SessionManager
+import com.lean2708.mern.ui.auth.LoginActivity
+import android.content.Intent
 
 class ProductDetailFragment : Fragment() {
 
     private var _binding: FragmentProductDetailBinding? = null
     private val binding get() = _binding!!
+
     private lateinit var suggestedAdapter: ProductAdapter
+    private lateinit var imageSliderAdapter: ImageSliderAdapter
+    private lateinit var reviewAdapter: ReviewAdapter
 
     private var currentProduct: Product? = null
+    private val sessionManager by lazy { SessionManager(requireContext()) }
 
-    // Sử dụng HomeViewModel để lấy chi tiết và sản phẩm đề xuất
     private val viewModel: HomeViewModel by viewModels {
         HomeViewModelFactory(HomeRepository(RetrofitInstance.api))
     }
@@ -67,18 +77,34 @@ class ProductDetailFragment : Fragment() {
 
         if (productId != null) {
             setupRecyclerView()
+            setupImageSlider()
+            setupReviewRecyclerView()
             setupObservers()
             setupListeners()
 
-            // GỌI API CHÍNH XÁC
             viewModel.fetchProductDetails(productId!!)
         } else {
             Toast.makeText(requireContext(), "Lỗi: Không tìm thấy ID sản phẩm", Toast.LENGTH_LONG).show()
         }
     }
 
+    private fun setupImageSlider() {
+        imageSliderAdapter = ImageSliderAdapter(emptyList())
+        binding.vpImageSlider.adapter = imageSliderAdapter
+
+        TabLayoutMediator(binding.tabIndicator, binding.vpImageSlider) { tab, position ->
+            // Logic gắn indicator
+        }.attach()
+    }
+
+    private fun setupReviewRecyclerView() {
+        reviewAdapter = ReviewAdapter()
+        binding.rvReviews.isNestedScrollingEnabled = false
+        binding.rvReviews.adapter = reviewAdapter
+    }
+
+
     private fun setupRecyclerView() {
-        // Khi click vào sản phẩm đề xuất, điều hướng tới màn hình chi tiết mới
         suggestedAdapter = ProductAdapter(onProductClick = { product ->
             navigateToProductDetail(product._id)
         })
@@ -94,7 +120,10 @@ class ProductDetailFragment : Fragment() {
                     setLoading(false)
                     (resource.data as? Product)?.let {
                         displayProductDetails(it)
-                        currentProduct = it // LƯU SẢN PHẨM HIỆN TẠI
+                        currentProduct = it
+                        // CẬP NHẬT SLIDER ẢNH
+                        imageSliderAdapter = ImageSliderAdapter(it.productImage)
+                        binding.vpImageSlider.adapter = imageSliderAdapter
                     }
                 }
                 is Resource.Error<*> -> {
@@ -111,7 +140,6 @@ class ProductDetailFragment : Fragment() {
         viewModel.suggestedProducts.observe(viewLifecycleOwner) { resource ->
             when (resource) {
                 is Resource.Success<*> -> {
-                    // Cập nhật Adapter sản phẩm đề xuất
                     @Suppress("UNCHECKED_CAST")
                     (resource.data as? List<Product>)?.let { list ->
                         suggestedAdapter.differ.submitList(list)
@@ -124,12 +152,26 @@ class ProductDetailFragment : Fragment() {
             }
         }
 
-        // 3. Lắng nghe kết quả THÊM VÀO GIỎ HÀNG
+        // 3. Lắng nghe Reviews
+        viewModel.productReviews.observe(viewLifecycleOwner) { resource ->
+            when(resource) {
+                is Resource.Success<*> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val reviews = resource.data as? List<ProductReview>
+                    reviewAdapter.submitList(reviews)
+                    if (reviews?.isEmpty() == true) {
+                        binding.tvReviewTitle.text = "Đánh giá và Nhận xét (Chưa có)"
+                    }
+                }
+                is Resource.Error -> binding.tvReviewTitle.visibility = View.GONE
+                else -> Unit
+            }
+        }
+
+        // 4. Lắng nghe kết quả THÊM VÀO GIỎ HÀNG
         viewModel.addToCartResult.observe(viewLifecycleOwner) { resource ->
             when(resource) {
-                is Resource.Loading -> {
-                    setLoadingButtons(true) // Vô hiệu hóa nút
-                }
+                is Resource.Loading -> setLoadingButtons(true)
                 is Resource.Success<*> -> {
                     setLoadingButtons(false)
                     Toast.makeText(requireContext(), resource.message ?: "Thêm giỏ hàng thành công!", Toast.LENGTH_SHORT).show()
@@ -146,40 +188,54 @@ class ProductDetailFragment : Fragment() {
     private fun displayProductDetails(product: Product) {
         val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
 
-        binding.toolbar.title = product.productName // Cập nhật tiêu đề Toolbar
+        binding.toolbar.title = product.productName
 
         binding.tvProductName.text = product.productName
         binding.tvBrandName.text = "Thương hiệu: ${product.brandName}"
         binding.tvDescription.text = product.description
 
-        // Giá bán (sellingPrice)
         binding.tvSellingPrice.text = formatter.format(product.sellingPrice)
-
-        // Giá gốc (price) - Gạch ngang
         binding.tvPrice.text = formatter.format(product.price)
         binding.tvPrice.paintFlags = binding.tvPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
 
-        // Ảnh
-        if (product.productImage.isNotEmpty()) {
-            Glide.with(this)
-                .load(product.productImage[0])
-                .into(binding.imgProduct)
-        }
+        binding.ratingBar.rating = product.averageRating?.toFloat() ?: 0f
+        binding.tvReviewCount.text = "(${product.numberOfReviews ?: 0} đánh giá)"
+        binding.tvReviewTitle.text = "Đánh giá và Nhận xét (${product.numberOfReviews ?: 0})"
+
+        val stockCount = product.stock ?: 0
+        val stockText = if (stockCount > 0) "Tồn kho: $stockCount" else "Hết hàng"
+        binding.tvStock.text = stockText
+        val stockColor = if (stockCount > 0) R.color.colorTextSecondary else R.color.colorPrimaryDark
+        binding.tvStock.setTextColor(requireContext().getColor(stockColor))
+
         binding.bottomActionLayout.visibility = View.VISIBLE
     }
 
     private fun navigateToProductDetail(newProductId: String) {
-        // Tạo Fragment mới và thay thế Fragment hiện tại
         val detailFragment = newInstance(newProductId)
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, detailFragment)
-            .addToBackStack(null) // Cho phép nhấn Back để quay lại chi tiết sản phẩm cũ
+            .addToBackStack(null)
             .commit()
     }
 
+    // --- HÀM KIỂM TRA BẢO MẬT ---
+    private fun isUserLoggedIn(): Boolean {
+        return sessionManager.fetchAuthToken() != null
+    }
+
+    private fun showLoginAndRedirect() {
+        Toast.makeText(requireContext(), "Vui lòng đăng nhập để thực hiện giao dịch.", Toast.LENGTH_LONG).show()
+        startActivity(Intent(requireContext(), LoginActivity::class.java))
+    }
+    // ----------------------------
+
     private fun setupListeners() {
         binding.btnBuyNow.setOnClickListener {
-            // Kiểm tra sản phẩm trước khi mua
+            if (!isUserLoggedIn()) { // KIỂM TRA BẢO MẬT
+                showLoginAndRedirect()
+                return@setOnClickListener
+            }
             currentProduct?.let { product ->
                 Toast.makeText(requireContext(), "Đang xử lý mua ngay: ${product.productName}", Toast.LENGTH_SHORT).show()
                 // TODO: Xử lý logic thanh toán
@@ -187,6 +243,10 @@ class ProductDetailFragment : Fragment() {
         }
 
         binding.btnAddToCart.setOnClickListener {
+            if (!isUserLoggedIn()) { // KIỂM TRA BẢO MẬT
+                showLoginAndRedirect()
+                return@setOnClickListener
+            }
             currentProduct?.let { product ->
                 viewModel.addToCart(product._id) // GỌI HÀM ADD TO CART
             } ?: Toast.makeText(requireContext(), "Sản phẩm chưa sẵn sàng.", Toast.LENGTH_SHORT).show()
@@ -195,17 +255,14 @@ class ProductDetailFragment : Fragment() {
 
     private fun setLoading(isLoading: Boolean) {
         binding.progressBarDetail.visibility = if (isLoading) View.VISIBLE else View.GONE
-        // Ẩn thanh thao tác khi đang tải
         binding.bottomActionLayout.visibility = if (isLoading) View.GONE else View.VISIBLE
     }
 
     private fun setLoadingButtons(isLoading: Boolean) {
-        // Chỉ vô hiệu hóa nút khi xử lý giỏ hàng
         binding.btnAddToCart.isEnabled = !isLoading
         binding.btnBuyNow.isEnabled = !isLoading
         binding.btnAddToCart.text = if (isLoading) "Đang thêm..." else "Thêm vào giỏ"
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()

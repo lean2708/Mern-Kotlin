@@ -104,4 +104,8 @@ interface ApiService {
 
     @GET("search")
     suspend fun searchProducts(@Query("q") query: String): Response<ProductListResponse>
+
+
+    @GET("review/product/{productId}")
+    suspend fun getProductReviews(@Path("productId") productId: String): Response<ReviewListResponse>
 }
