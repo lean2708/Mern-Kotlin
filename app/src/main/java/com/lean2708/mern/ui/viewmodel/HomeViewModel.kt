@@ -163,4 +163,27 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
             }
         }
     }
+
+
+
+    private val _searchResult = MutableLiveData<Resource<List<Product>>>()
+    val searchResult: LiveData<Resource<List<Product>>> = _searchResult // <-- Sửa lỗi 'searchResult'
+
+    // Hàm MỚI để Fragment gọi (Sửa lỗi 'searchProducts')
+    fun searchProducts(query: String) {
+        _searchResult.postValue(Resource.Loading())
+        viewModelScope.launch {
+            try {
+                // repository.searchProducts() đã được định nghĩa
+                val response = repository.searchProducts(query)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _searchResult.postValue(Resource.Success(response.body()!!.data))
+                } else {
+                    _searchResult.postValue(Resource.Error("Lỗi tìm kiếm: Không tìm thấy"))
+                }
+            } catch (e: Exception) {
+                _searchResult.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
+            }
+        }
+    }
 }

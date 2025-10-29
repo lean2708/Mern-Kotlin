@@ -101,4 +101,7 @@ interface ApiService {
     // API 3: Hủy đơn hàng (UPDATE)
     @PUT("order/{orderId}/cancel")
     suspend fun cancelOrder(@Path("orderId") orderId: String): Response<OrderDetailResponse>
+
+    @GET("search")
+    suspend fun searchProducts(@Query("q") query: String): Response<ProductListResponse>
 }

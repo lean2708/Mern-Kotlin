@@ -15,6 +15,11 @@ import com.lean2708.mern.ui.home.adapter.HomeAdapter
 import com.lean2708.mern.ui.viewmodel.HomeViewModel
 import com.lean2708.mern.ui.viewmodel.HomeViewModelFactory
 import com.lean2708.mern.ui.viewmodel.Resource
+import com.lean2708.mern.ui.home.fragment.SearchFragment // Cần import SearchFragment
+import com.lean2708.mern.ui.home.fragment.CategoryProductListFragment // Cần import CategoryProductListFragment
+import com.lean2708.mern.ui.home.fragment.ProductDetailFragment // Cần import ProductDetailFragment
+import android.view.inputmethod.EditorInfo
+import android.widget.TextView
 
 class HomeFragment : Fragment() {
 
@@ -39,11 +44,12 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         setupObservers()
+        setupSearchBoxListener() // <--- GỌI HÀM KÍCH HOẠT TÌM KIẾM
+
         // Hàm loadHomePageData() được gọi trong init của ViewModel
     }
 
     private fun setupRecyclerView() {
-        // Cập nhật: Truyền cả hai listener cho sản phẩm chi tiết và danh mục
         homeAdapter = HomeAdapter(
             onProductClick = { productId ->
                 navigateToProductDetail(productId)
@@ -55,6 +61,17 @@ class HomeFragment : Fragment() {
         binding.rvHome.adapter = homeAdapter
     }
 
+    private fun setupSearchBoxListener() {
+        // 1. Khi người dùng nhấn vào EditText, chuyển sang màn hình tìm kiếm chuyên biệt
+        binding.etSearchBox.setOnClickListener {
+            navigateToSearch()
+        }
+
+        // 2. Ngăn EditText trên HomeFragment mở bàn phím và chỉ kích hoạt khi click
+        binding.etSearchBox.isFocusable = false
+        binding.etSearchBox.isLongClickable = false
+    }
+
     private fun setupObservers() {
         viewModel.homeItems.observe(viewLifecycleOwner) { resource ->
             when (resource) {
@@ -64,7 +81,6 @@ class HomeFragment : Fragment() {
                 is Resource.Success -> {
                     binding.progressBar.visibility = View.GONE
                     resource.data?.let {
-                        // Cần ép kiểu an toàn khi sử dụng Resource.Success<*>
                         @Suppress("UNCHECKED_CAST")
                         homeAdapter.differ.submitList(it as? List<com.lean2708.mern.ui.viewmodel.HomeDisplayItem>)
                     }
@@ -84,10 +100,9 @@ class HomeFragment : Fragment() {
     private fun navigateToProductDetail(productId: String) {
         val detailFragment = ProductDetailFragment.newInstance(productId)
 
-        // Sử dụng fragment_container ID từ MainActivity để chuyển Fragment
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, detailFragment)
-            .addToBackStack(null) // Cho phép người dùng nhấn nút Back để quay lại HomeFragment
+            .addToBackStack(null)
             .commit()
     }
 
@@ -98,6 +113,19 @@ class HomeFragment : Fragment() {
         val listFragment = CategoryProductListFragment.newInstance(categoryName)
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, listFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
+    /**
+     * Hàm điều hướng tới màn hình Tìm kiếm chuyên biệt
+     */
+    private fun navigateToSearch() {
+        // Sử dụng SearchFragment.newInstance() (giả định nó tồn tại và không cần tham số khởi tạo)
+        val searchFragment = SearchFragment() // Tạo instance SearchFragment
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, searchFragment)
             .addToBackStack(null)
             .commit()
     }

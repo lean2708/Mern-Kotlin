@@ -17,4 +17,7 @@ class HomeRepository(private val apiService: ApiService) {
 
     suspend fun addToCart(productId: String) =
         apiService.addToCart(AddToCartRequest(productId))
+
+
+    suspend fun searchProducts(query: String) = apiService.searchProducts(query)
 }
