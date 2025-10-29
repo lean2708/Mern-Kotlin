@@ -32,6 +32,13 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        // --- FIX LỖI: LISTENER QUAY LẠI TRANG CHỦ ĐẶT Ở ĐÂY ---
+        binding.btnBackToHome.setOnClickListener {
+            // Dùng finish() để đóng Activity và quay về MainActivity (Trang chủ)
+            finish()
+        }
+        // ----------------------------------------------------
+
         binding.btnLogin.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
@@ -53,20 +60,19 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    // Bên trong file ui/auth/LoginActivity.kt
-
     private fun setupObservers() {
         viewModel.loginResult.observe(this) { result ->
             setLoading(false)
             result.onSuccess { response ->
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
 
-                // TODO: Lưu token (response.data)
+                // Lưu Token khi đăng nhập thành công
                 sessionManager.saveAuthToken(response.data)
 
-                val intent = Intent(this, MainActivity::class.java) // Dòng mới
+                // Chuyển sang màn hình chính
+                val intent = Intent(this, MainActivity::class.java)
                 startActivity(intent)
-                finish()
+                finish() // Đóng LoginActivity
             }
             result.onFailure {
                 Toast.makeText(this, "Đăng nhập thất bại: ${it.message}", Toast.LENGTH_LONG).show()
