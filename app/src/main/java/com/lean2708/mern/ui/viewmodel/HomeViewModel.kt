@@ -143,4 +143,24 @@ class HomeViewModel(private val repository: HomeRepository) : ViewModel() {
             }
         }
     }
+
+
+    private val _categoryProductList = MutableLiveData<Resource<List<Product>>>()
+    val categoryProductList: LiveData<Resource<List<Product>>> = _categoryProductList
+
+    fun fetchProductsByCategoryOnly(category: String) {
+        _categoryProductList.postValue(Resource.Loading())
+        viewModelScope.launch {
+            try {
+                val response = repository.getProductsForCategory(category)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _categoryProductList.postValue(Resource.Success(response.body()!!.data))
+                } else {
+                    _categoryProductList.postValue(Resource.Error(response.body()?.message ?: "Không tải được sản phẩm."))
+                }
+            } catch (e: Exception) {
+                _categoryProductList.postValue(Resource.Error(e.message ?: "Lỗi mạng."))
+            }
+        }
+    }
 }

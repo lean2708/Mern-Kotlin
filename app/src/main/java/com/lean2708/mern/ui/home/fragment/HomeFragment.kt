@@ -11,7 +11,6 @@ import com.lean2708.mern.R
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentHomeBinding
 import com.lean2708.mern.repository.HomeRepository
-import com.lean2708.mern.ui.home.fragment.ProductDetailFragment
 import com.lean2708.mern.ui.home.adapter.HomeAdapter
 import com.lean2708.mern.ui.viewmodel.HomeViewModel
 import com.lean2708.mern.ui.viewmodel.HomeViewModelFactory
@@ -40,13 +39,19 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         setupObservers()
+        // Hàm loadHomePageData() được gọi trong init của ViewModel
     }
 
     private fun setupRecyclerView() {
-        // Cập nhật: Truyền hàm xử lý click vào HomeAdapter
-        homeAdapter = HomeAdapter(onProductClick = { productId ->
-            navigateToProductDetail(productId)
-        })
+        // Cập nhật: Truyền cả hai listener cho sản phẩm chi tiết và danh mục
+        homeAdapter = HomeAdapter(
+            onProductClick = { productId ->
+                navigateToProductDetail(productId)
+            },
+            onCategoryClick = { categoryName ->
+                navigateToCategoryProductList(categoryName) // Điều hướng tới trang list sản phẩm theo category
+            }
+        )
         binding.rvHome.adapter = homeAdapter
     }
 
@@ -83,6 +88,17 @@ class HomeFragment : Fragment() {
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, detailFragment)
             .addToBackStack(null) // Cho phép người dùng nhấn nút Back để quay lại HomeFragment
+            .commit()
+    }
+
+    /**
+     * Hàm điều hướng tới màn hình danh sách sản phẩm theo Category
+     */
+    private fun navigateToCategoryProductList(categoryName: String) {
+        val listFragment = CategoryProductListFragment.newInstance(categoryName)
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, listFragment)
+            .addToBackStack(null)
             .commit()
     }
 

@@ -11,6 +11,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -87,4 +88,17 @@ interface ApiService {
 
     @POST("delete-cart-product") // API 4: Xóa sản phẩm
     suspend fun deleteCartProduct(@Body request: DeleteCartRequest): Response<GenericResponse>
+
+
+
+    @GET("order/by-status")
+    suspend fun getOrdersByStatus(@Query("status") status: String): Response<OrderListResponse>
+
+    // API 2: Xem chi tiết đơn hàng
+    @GET("order/{orderId}")
+    suspend fun getOrderDetail(@Path("orderId") orderId: String): Response<OrderDetailResponse>
+
+    // API 3: Hủy đơn hàng (UPDATE)
+    @PUT("order/{orderId}/cancel")
+    suspend fun cancelOrder(@Path("orderId") orderId: String): Response<OrderDetailResponse>
 }

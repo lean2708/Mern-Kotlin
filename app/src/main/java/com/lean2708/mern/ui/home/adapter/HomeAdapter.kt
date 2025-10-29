@@ -11,8 +11,9 @@ import com.lean2708.mern.databinding.ItemHomeProductSectionBinding
 import com.lean2708.mern.ui.viewmodel.HomeDisplayItem
 
 class HomeAdapter(
-    // Bổ sung listener vào constructor chính
-    private val onProductClick: (String) -> Unit
+    // Bổ sung listener vào constructor chính: dùng cho mọi click (sản phẩm hoặc danh mục)
+    private val onProductClick: (String) -> Unit,
+    private val onCategoryClick: (String) -> Unit // MỚI: Thêm listener cho click vào Category
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // Định nghĩa 2 loại ViewType
@@ -21,12 +22,11 @@ class HomeAdapter(
         private const val VIEW_TYPE_PRODUCT_SECTION = 1
     }
 
-    // ViewHolder cho mục Category
+    // ViewHolder cho mục Category (HÀNG ẢNH TRÒN ĐẦU TIÊN)
     inner class CategorySectionViewHolder(val binding: ItemHomeCategoriesBinding) : RecyclerView.ViewHolder(binding.root) {
-        // Giả định CategoryAdapter cũng cần listener nếu bạn muốn click vào category để lọc
-        // Hiện tại: giữ nguyên, không cần truyền listener vào CategoryAdapter
+        // Truyền listener category vào CategoryAdapter
         private val categoryAdapter = CategoryAdapter(onProductClick = { product ->
-            onProductClick(product._id) // Dùng tạm listener nếu bạn muốn click vào sản phẩm đại diện
+            onCategoryClick(product.category) // TRUYỀN TÊN CATEGORY KHI CLICK VÀO ẢNH ĐẠI DIỆN
         })
         init {
             binding.rvCategories.adapter = categoryAdapter
@@ -36,9 +36,9 @@ class HomeAdapter(
         }
     }
 
-    // ViewHolder cho mục Product
+    // ViewHolder cho mục Product (HÀNG SẢN PHẨM CUỘN NGANG)
     inner class ProductSectionViewHolder(val binding: ItemHomeProductSectionBinding) : RecyclerView.ViewHolder(binding.root) {
-        // Truyền listener vào ProductAdapter
+        // Truyền listener ID sản phẩm vào ProductAdapter
         private val productAdapter = ProductAdapter(onProductClick = { product ->
             onProductClick(product._id) // Gọi listener chính với Product ID
         })
