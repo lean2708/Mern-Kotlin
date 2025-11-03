@@ -27,6 +27,7 @@ import java.util.Locale
 import com.lean2708.mern.data.local.SessionManager
 import com.lean2708.mern.ui.auth.LoginActivity
 import android.content.Intent
+import com.lean2708.mern.ui.orders.CheckoutFragment // CẦN IMPORT
 
 class ProductDetailFragment : Fragment() {
 
@@ -112,6 +113,8 @@ class ProductDetailFragment : Fragment() {
     }
 
     private fun setupObservers() {
+        // ... (Lắng nghe các LiveData giữ nguyên) ...
+
         // 1. Lắng nghe chi tiết sản phẩm
         viewModel.productDetails.observe(viewLifecycleOwner) { resource ->
             when (resource) {
@@ -121,7 +124,6 @@ class ProductDetailFragment : Fragment() {
                     (resource.data as? Product)?.let {
                         displayProductDetails(it)
                         currentProduct = it
-                        // CẬP NHẬT SLIDER ẢNH
                         imageSliderAdapter = ImageSliderAdapter(it.productImage)
                         binding.vpImageSlider.adapter = imageSliderAdapter
                     }
@@ -187,27 +189,21 @@ class ProductDetailFragment : Fragment() {
 
     private fun displayProductDetails(product: Product) {
         val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
-
         binding.toolbar.title = product.productName
-
         binding.tvProductName.text = product.productName
         binding.tvBrandName.text = "Thương hiệu: ${product.brandName}"
         binding.tvDescription.text = product.description
-
         binding.tvSellingPrice.text = formatter.format(product.sellingPrice)
         binding.tvPrice.text = formatter.format(product.price)
         binding.tvPrice.paintFlags = binding.tvPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
-
         binding.ratingBar.rating = product.averageRating?.toFloat() ?: 0f
         binding.tvReviewCount.text = "(${product.numberOfReviews ?: 0} đánh giá)"
         binding.tvReviewTitle.text = "Đánh giá và Nhận xét (${product.numberOfReviews ?: 0})"
-
         val stockCount = product.stock ?: 0
         val stockText = if (stockCount > 0) "Tồn kho: $stockCount" else "Hết hàng"
         binding.tvStock.text = stockText
         val stockColor = if (stockCount > 0) R.color.colorTextSecondary else R.color.colorPrimaryDark
         binding.tvStock.setTextColor(requireContext().getColor(stockColor))
-
         binding.bottomActionLayout.visibility = View.VISIBLE
     }
 
@@ -219,7 +215,16 @@ class ProductDetailFragment : Fragment() {
             .commit()
     }
 
-    // --- HÀM KIỂM TRA BẢO MẬT ---
+    private fun navigateToCheckout(product: Product, quantity: Int) {
+        val checkoutFragment = CheckoutFragment.newInstance(product, quantity)
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, checkoutFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+    // ------------------------------------------------
+
     private fun isUserLoggedIn(): Boolean {
         return sessionManager.fetchAuthToken() != null
     }
@@ -228,27 +233,26 @@ class ProductDetailFragment : Fragment() {
         Toast.makeText(requireContext(), "Vui lòng đăng nhập để thực hiện giao dịch.", Toast.LENGTH_LONG).show()
         startActivity(Intent(requireContext(), LoginActivity::class.java))
     }
-    // ----------------------------
 
     private fun setupListeners() {
         binding.btnBuyNow.setOnClickListener {
-            if (!isUserLoggedIn()) { // KIỂM TRA BẢO MẬT
+            if (!isUserLoggedIn()) {
                 showLoginAndRedirect()
                 return@setOnClickListener
             }
             currentProduct?.let { product ->
-                Toast.makeText(requireContext(), "Đang xử lý mua ngay: ${product.productName}", Toast.LENGTH_SHORT).show()
-                // TODO: Xử lý logic thanh toán
+                // CHUYỂN SANG CHECKOUT
+                navigateToCheckout(product, quantity = 1)
             } ?: Toast.makeText(requireContext(), "Sản phẩm chưa sẵn sàng.", Toast.LENGTH_SHORT).show()
         }
 
         binding.btnAddToCart.setOnClickListener {
-            if (!isUserLoggedIn()) { // KIỂM TRA BẢO MẬT
+            if (!isUserLoggedIn()) {
                 showLoginAndRedirect()
                 return@setOnClickListener
             }
             currentProduct?.let { product ->
-                viewModel.addToCart(product._id) // GỌI HÀM ADD TO CART
+                viewModel.addToCart(product._id)
             } ?: Toast.makeText(requireContext(), "Sản phẩm chưa sẵn sàng.", Toast.LENGTH_SHORT).show()
         }
     }

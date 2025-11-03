@@ -13,7 +13,7 @@ import com.lean2708.mern.data.model.Order
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentOrdersBinding
 import com.lean2708.mern.repository.OrderRepository
-import com.lean2708.mern.ui.orders.adapter.OrderAdapter // Đã sửa và tách biệt
+import com.lean2708.mern.ui.orders.OrderAdapter // Đã sửa và tách biệt
 import com.lean2708.mern.ui.viewmodel.OrderViewModel
 import com.lean2708.mern.ui.viewmodel.OrderStatus
 import com.lean2708.mern.ui.viewmodel.OrderViewModelFactory

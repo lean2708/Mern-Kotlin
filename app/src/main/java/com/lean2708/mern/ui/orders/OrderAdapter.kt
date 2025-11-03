@@ -1,10 +1,9 @@
-package com.lean2708.mern.ui.orders.adapter
+package com.lean2708.mern.ui.orders
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.lean2708.mern.data.model.Order
@@ -12,7 +11,6 @@ import com.lean2708.mern.databinding.ItemOrderSummaryBinding
 import com.lean2708.mern.ui.viewmodel.OrderStatus
 import java.text.NumberFormat
 import java.util.Locale
-
 
 class OrderAdapter(
     private val onDetailClick: (String) -> Unit
@@ -36,7 +34,7 @@ class OrderAdapter(
             val totalQuantity = order.orderItems.sumOf { it.quantity }
 
             // Cập nhật Header
-            binding.tvStatus.text = OrderStatus.fromValue(order.orderStatus)
+            binding.tvStatus.text = OrderStatus.Companion.fromValue(order.orderStatus)
             binding.tvTotalPrice.text = formatter.format(order.totalPrice)
 
             // Cập nhật Footer

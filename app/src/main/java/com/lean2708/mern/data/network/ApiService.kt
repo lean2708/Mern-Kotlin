@@ -12,6 +12,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 interface ApiService {
 
@@ -108,4 +109,16 @@ interface ApiService {
 
     @GET("review/product/{productId}")
     suspend fun getProductReviews(@Path("productId") productId: String): Response<ReviewListResponse>
+
+
+    @POST("order")
+    suspend fun createCashOrder(@Body request: CreateOrderRequest): Response<DataResponse<Order>> // <-- UNRESOLVED 'createCashOrder'
+
+    // SỬA LỖI 2: Hàm tạo Order VNPAY
+    @POST("order")
+    suspend fun createVnpayOrder(@Body request: CreateOrderRequest): Response<VnpayOrderResponse> // <-- UNRESOLVED 'createVnpayOrder'
+
+    // SỬA LỖI 3: Hàm xử lý VNPAY Callback
+    @GET("order/vnpay-return")
+    suspend fun handleVnpayReturn(@QueryMap params: Map<String, String>): Response<GenericResponse> // <-- UNRESOLVED 'handleVnpayReturn'
 }
