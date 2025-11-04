@@ -91,4 +91,6 @@ dependencies {
     implementation ("com.github.bumptech.glide:glide:4.16.0")
     // CẦN THIẾT CHO GLIDEMODULE:
     annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
+
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.0")
 }

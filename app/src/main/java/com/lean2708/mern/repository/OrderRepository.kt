@@ -9,7 +9,7 @@ class OrderRepository(private val apiService: ApiService) {
     suspend fun cancelOrder(orderId: String) = apiService.cancelOrder(orderId)
 
     suspend fun createCashOrder(request: CreateOrderRequest) = apiService.createCashOrder(request)
-    suspend fun createVnpayOrder(request: CreateOrderRequest) = apiService.createVnpayOrder(request)
 
+    suspend fun createVnpayOrder(request: CreateOrderRequest) = apiService.createVnpayOrder(request)
     suspend fun checkVnpayCallback(params: Map<String, String>) = apiService.handleVnpayReturn(params)
 }

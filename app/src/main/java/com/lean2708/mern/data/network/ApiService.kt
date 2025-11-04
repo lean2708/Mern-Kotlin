@@ -32,16 +32,23 @@ interface ApiService {
     @POST("forgot-password/reset-password")
     suspend fun resetPassword(@Body resetPasswordRequest: ResetPasswordRequest): Response<GenericResponse>
 
-    // --- API HOME ---
+    // --- API HOME & SẢN PHẨM ---
     @GET("get-categoryProduct")
     suspend fun getCategoryProducts(): Response<ProductListResponse>
 
     @POST("category-product")
     suspend fun getProductsForCategory(@Body categoryRequest: CategoryRequest): Response<ProductListResponse>
 
-    // --- API PROFILE (CÁ NHÂN) ---
+    @POST("product-details")
+    suspend fun getProductDetails(@Body request: ProductDetailRequest): Response<DataResponse<Product>>
 
-    // 1. Hồ sơ cá nhân
+    @GET("search")
+    suspend fun searchProducts(@Query("q") query: String): Response<ProductListResponse>
+
+    @GET("review/product/{productId}")
+    suspend fun getProductReviews(@Path("productId") productId: String): Response<ReviewListResponse>
+
+    // --- API PROFILE & ADDRESS ---
     @GET("user-details")
     suspend fun getUserDetails(): Response<DataResponse<User>>
 
@@ -52,11 +59,9 @@ interface ApiService {
     @POST("upload-avatar")
     suspend fun uploadAvatar(@Part file: MultipartBody.Part): Response<AvatarResponse>
 
-    // 2. Đổi mật khẩu
     @POST("change-password")
     suspend fun changePassword(@Body request: ChangePasswordRequest): Response<GenericResponse>
 
-    // 3. Địa chỉ
     @POST("address")
     suspend fun createAddress(@Body request: AddressRequest): Response<DataResponse<Address>>
 
@@ -72,53 +77,43 @@ interface ApiService {
     @DELETE("address/{addressId}")
     suspend fun deleteAddress(@Path("addressId") addressId: String): Response<GenericResponse>
 
-    @POST("product-details")
-    suspend fun getProductDetails(@Body request: ProductDetailRequest): Response<DataResponse<Product>>
-
+    // --- API GIỎ HÀNG (CART) ---
     @POST("addtoCart")
     suspend fun addToCart(@Body request: AddToCartRequest): Response<AddToCartResponse>
 
-    @GET("countAddToCartProduct") // API 1: Đếm số lượng
+    @GET("countAddToCartProduct")
     suspend fun getCartCount(): Response<CartCountResponse>
 
-    @GET("view-cart-product") // API 2: Xem chi tiết giỏ hàng
+    @GET("view-cart-product")
     suspend fun viewCartProducts(): Response<ViewCartResponse>
 
-    @POST("update-cart-product") // API 3: Cập nhật số lượng
+    @POST("update-cart-product")
     suspend fun updateCartProduct(@Body request: UpdateCartRequest): Response<GenericResponse>
 
-    @POST("delete-cart-product") // API 4: Xóa sản phẩm
+    @POST("delete-cart-product")
     suspend fun deleteCartProduct(@Body request: DeleteCartRequest): Response<GenericResponse>
 
-
-
+    // --- API ĐƠN HÀNG (ORDER) ---
     @GET("order/by-status")
     suspend fun getOrdersByStatus(@Query("status") status: String): Response<OrderListResponse>
 
-    // API 2: Xem chi tiết đơn hàng
     @GET("order/{orderId}")
     suspend fun getOrderDetail(@Path("orderId") orderId: String): Response<OrderDetailResponse>
 
-    // API 3: Hủy đơn hàng (UPDATE)
     @PUT("order/{orderId}/cancel")
     suspend fun cancelOrder(@Path("orderId") orderId: String): Response<OrderDetailResponse>
 
-    @GET("search")
-    suspend fun searchProducts(@Query("q") query: String): Response<ProductListResponse>
+    // --- BỔ SUNG CÁC HÀM TẠO ĐƠN HÀNG VÀ CALLBACK (API 1, 2, 4) ---
 
-
-    @GET("review/product/{productId}")
-    suspend fun getProductReviews(@Path("productId") productId: String): Response<ReviewListResponse>
-
-
+    // API 1: Tạo đơn hàng CASH (Trả về SimpleOrder)
     @POST("order")
-    suspend fun createCashOrder(@Body request: CreateOrderRequest): Response<DataResponse<Order>> // <-- UNRESOLVED 'createCashOrder'
+    suspend fun createCashOrder(@Body request: CreateOrderRequest): Response<DataResponse<SimpleOrder>>
 
-    // SỬA LỖI 2: Hàm tạo Order VNPAY
+    // API 2: Tạo đơn hàng VNPAY (Response VnpayOrderResponse chứa SimpleOrder)
     @POST("order")
-    suspend fun createVnpayOrder(@Body request: CreateOrderRequest): Response<VnpayOrderResponse> // <-- UNRESOLVED 'createVnpayOrder'
+    suspend fun createVnpayOrder(@Body request: CreateOrderRequest): Response<VnpayOrderResponse>
 
-    // SỬA LỖI 3: Hàm xử lý VNPAY Callback
+    // API 4: Xử lý VNPAY Callback
     @GET("order/vnpay-return")
-    suspend fun handleVnpayReturn(@QueryMap params: Map<String, String>): Response<GenericResponse> // <-- UNRESOLVED 'handleVnpayReturn'
+    suspend fun handleVnpayReturn(@QueryMap params: Map<String, String>): Response<GenericResponse>
 }

@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import com.google.gson.Gson
 import retrofit2.Response
 
-
+// Trạng thái đơn hàng (để mapping tiếng Việt)
 enum class OrderStatus(val value: String, val vietnamese: String) {
     PENDING("PENDING", "Chờ xác nhận"),
     PROCESSING("PROCESSING", "Đang xử lý"),
@@ -40,19 +40,20 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
     val selectedStatus: LiveData<OrderStatus> = _selectedStatus
 
     // --- LIVE DATA CHO CHECKOUT ---
-    private val _defaultAddress = MutableLiveData<Resource<List<Address>>>() // SỬA LỖI: Luôn trả về List
+    private val _defaultAddress = MutableLiveData<Resource<List<Address>>>() // Trả về List
     val defaultAddress: LiveData<Resource<List<Address>>> = _defaultAddress
 
     private val _vnpayOrderResult = MutableLiveData<Resource<VnpayOrderResponse>>()
     val vnpayOrderResult: LiveData<Resource<VnpayOrderResponse>> = _vnpayOrderResult
 
-    private val _cashOrderResult = MutableLiveData<Resource<Order>>()
-    val cashOrderResult: LiveData<Resource<Order>> = _cashOrderResult
+    private val _cashOrderResult = MutableLiveData<Resource<SimpleOrder>>() // Dùng SimpleOrder
+    val cashOrderResult: LiveData<Resource<SimpleOrder>> = _cashOrderResult
 
     private val _vnpayCallbackResult = MutableLiveData<Resource<GenericResponse>>()
     val vnpayCallbackResult: LiveData<Resource<GenericResponse>> = _vnpayCallbackResult
 
     init {
+        // Tải đơn hàng mặc định khi ViewModel khởi tạo
         fetchOrdersByStatus(selectedStatus.value!!.value)
     }
 
@@ -126,7 +127,7 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
         }
     }
 
-    // --- API: LẤY ĐỊA CHỈ MẶC ĐỊNH (Trả về List<Address>) ---
+    // --- API: LẤY ĐỊA CHỈ (Trả về List<Address>) ---
     fun fetchDefaultAddress(addressRepository: ProfileRepository) {
         _defaultAddress.postValue(Resource.Loading())
         viewModelScope.launch {

@@ -1,6 +1,5 @@
 package com.lean2708.mern.ui.orders
 
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -32,18 +31,24 @@ class VnPayWebViewFragment : Fragment() {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        // Cần Context để khởi tạo WebView
         val webView = WebView(requireContext())
         webView.settings.javaScriptEnabled = true
 
+        // Cần phải xóa cache để VNPAY hoạt động đúng
+        webView.clearCache(true)
+        webView.clearHistory()
+
         // Ghi đè WebViewClient để bắt URL trả về
         webView.webViewClient = object : WebViewClient() {
+
+            // Xử lý khi WebView cố gắng load một URL mới
             override fun shouldOverrideUrlLoading(view: WebView?, url: String): Boolean {
 
-                // --- LOGIC BẮT CALLBACK TỪ LOCALHOST:3000 ---
+                // --- LOGIC BẮT CALLBACK VNPAY ---
+                // Chặn URL localhost:3000 (địa chỉ trả về đã config trên VNPAY)
                 if (url.contains("http://localhost:3000")) {
                     handleVnPayCallback(url)
-                    return true // Ngăn WebView load tiếp
+                    return true // Ngăn WebView load tiếp URL này
                 }
                 // ------------------------------------------
 
@@ -55,17 +60,19 @@ class VnPayWebViewFragment : Fragment() {
         return webView
     }
 
+    /**
+     * Trích xuất tham số từ URL trả về và gọi API xác nhận.
+     */
     private fun handleVnPayCallback(url: String) {
         val uri = Uri.parse(url)
 
-        // Trích xuất tất cả query parameters
-        // Sử dụng associateWith để tạo Map (cần cho API 4)
+        // Trích xuất tất cả query parameters (vnp_TxnRef, vnp_ResponseCode, v.v.)
         val params: Map<String, String> = uri.queryParameterNames.associateWith { uri.getQueryParameter(it) ?: "" }
 
-        // Gọi hàm xử lý trong MainActivity để xác nhận thanh toán (API 4)
+        // Gọi hàm xử lý trong MainActivity (API 4)
         (activity as? MainActivity)?.handleVnPayReturn(params)
 
-        // Đóng WebView và quay lại Fragment trước đó
+        // Đóng WebView và quay lại Fragment trước đó (CheckoutFragment)
         parentFragmentManager.popBackStack()
     }
 }

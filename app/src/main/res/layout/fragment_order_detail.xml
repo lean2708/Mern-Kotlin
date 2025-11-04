@@ -52,6 +52,27 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Địa chỉ giao hàng:"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/tvAddressDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                tools:text="Địa chỉ chi tiết: 123 Đường ABC, Phường X, Quận Y"/>
+
+            <TextView
+                android:id="@+id/tvPhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:layout_marginBottom="16dp"
+                tools:text="SĐT: 0901xxxxxx"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="Sản phẩm đã đặt:"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp"/>

@@ -6,7 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.setFragmentResultListener // Cần thiết
+import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import com.lean2708.mern.R
 import com.lean2708.mern.data.model.*
@@ -29,7 +29,6 @@ class CheckoutFragment : Fragment() {
     private val binding get() = _binding!!
 
     // KHÔNG CÒN ADAPTER cho địa chỉ (Đã chuyển sang TextView tĩnh)
-    // private lateinit var addressAdapter: CheckoutAddressAdapter
 
     private val viewModel: OrderViewModel by viewModels {
         OrderViewModelFactory(OrderRepository(RetrofitInstance.api))
@@ -75,14 +74,11 @@ class CheckoutFragment : Fragment() {
         binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
 
         setupProductInfo()
-        // XÓA GỌI HÀM: setupAddressRecyclerView()
         setupObservers()
         setupListeners()
-        setupAddressResultListener() // <-- KÍCH HOẠT LẮNG NGHE KẾT QUẢ
+        setupAddressResultListener() // Kích hoạt lắng nghe kết quả
 
         viewModel.fetchDefaultAddress(profileRepository)
-
-        Log.d("CheckoutFragment", "onViewCreated: Fragment execution finished.")
     }
 
     private fun setupAddressResultListener() {
@@ -91,16 +87,12 @@ class CheckoutFragment : Fragment() {
             viewLifecycleOwner
         ) { key, bundle ->
 
-            // Nhận đối tượng Address đã được chọn
             val newAddress: Address? = bundle.getParcelable(ChangeAddressFragment.BUNDLE_ADDRESS_KEY)
 
             newAddress?.let {
-                // 1. Cập nhật trạng thái
+                // Cập nhật địa chỉ đã chọn và UI
                 selectedAddress = it
-
-                // 2. Cập nhật UI
                 updateAddressUI(it)
-
                 binding.btnPlaceOrder.isEnabled = true
             }
         }
@@ -121,9 +113,6 @@ class CheckoutFragment : Fragment() {
         updateTotalSummary()
     }
 
-    // XÓA HÀM: private fun setupAddressRecyclerView() { ... }
-    // XÓA HÀM: private fun updateAddressSelection(address: Address?) { ... }
-
 
     private fun setupObservers() {
         // 1. Lắng nghe địa chỉ (Tải toàn bộ List)
@@ -140,7 +129,6 @@ class CheckoutFragment : Fragment() {
 
                     // CẬP NHẬT TEXT VIEW PHỤC HỒI
                     updateAddressUI(defaultAddr)
-
                     binding.btnPlaceOrder.isEnabled = defaultAddr != null
                 }
                 is Resource.Error -> {
@@ -202,7 +190,6 @@ class CheckoutFragment : Fragment() {
             }
         }
 
-        // LISTENER CHO NÚT THAY ĐỔI ĐỊA CHỈ PHỤC HỒI
         binding.btnChangeAddress.setOnClickListener {
             navigateToChangeAddress()
         }
