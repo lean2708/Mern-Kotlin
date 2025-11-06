@@ -116,4 +116,33 @@ interface ApiService {
     // API 4: Xử lý VNPAY Callback
     @GET("order/vnpay-return")
     suspend fun handleVnpayReturn(@QueryMap params: Map<String, String>): Response<GenericResponse>
+
+
+
+
+    // --- API REVIEW SẢN PHẨM ---
+
+    // API 1: Check Review Status (Đã đúng)
+    @POST("check-review")
+    suspend fun checkReview(@Body request: CheckReviewRequest): Response<CheckReviewResponse>
+
+    // API 2: Create Review (Sửa: Dùng SimpleProductReview)
+    @POST("add-review")
+    suspend fun addReview(@Body request: CreateReviewRequest): Response<DataResponse<SimpleProductReview>>
+
+    // API 3: Get Review Detail (Sửa: Dùng DetailedProductReview)
+    @GET("review/{reviewId}")
+    suspend fun getReviewDetail(@Path("reviewId") reviewId: String): Response<DataResponse<DetailedProductReview>>
+
+    // API 4: Update Review (Sửa: Dùng SimpleProductReview)
+    @PUT("update-review/{reviewId}")
+    suspend fun updateReview(
+        @Path("reviewId") reviewId: String,
+        @Body request: UpdateReviewRequest
+    ): Response<DataResponse<SimpleProductReview>>
+
+    // API 5: Upload Image (Đã đúng)
+    @Multipart
+    @POST("upload-images")
+    suspend fun uploadReviewImages(@Part files: List<MultipartBody.Part>): Response<UploadImageResponse>
 }

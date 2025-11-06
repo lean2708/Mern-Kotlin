@@ -7,7 +7,9 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions // Cần import
 import com.lean2708.mern.data.model.ProductReview
+import com.lean2708.mern.data.model.ReviewUser // Cần import ReviewUser
 import com.lean2708.mern.databinding.ItemProductReviewBinding
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -16,11 +18,9 @@ class ReviewAdapter : ListAdapter<ProductReview, ReviewAdapter.ReviewViewHolder>
 
     inner class ReviewViewHolder(private val binding: ItemProductReviewBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        // Khởi tạo Adapter con cho ảnh review
         private val reviewImageAdapter = ReviewImageAdapter()
 
         init {
-            // Thiết lập LayoutManager và Adapter cho ảnh review
             binding.rvReviewImages.adapter = reviewImageAdapter
             binding.rvReviewImages.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
                 binding.root.context,
@@ -30,24 +30,28 @@ class ReviewAdapter : ListAdapter<ProductReview, ReviewAdapter.ReviewViewHolder>
         }
 
         fun bind(review: ProductReview) {
-            // Định dạng ngày (Chuyển ISO sang định dạng dễ đọc - Yêu cầu logic Date)
-            // Tạm thời hiển thị 10 ký tự đầu tiên của chuỗi ISO
             binding.tvReviewDate.text = review.createdAt.substring(0, 10)
 
-            binding.tvUserName.text = review.user.name
-            binding.reviewRatingBar.rating = review.rating.toFloat()
+            // --- SỬA LỖI: KHÔNG CẦN ÉP KIỂU NỮA ---
+            // val userDetails = review.user as? ReviewUser (Đã xóa)
+
+            binding.tvUserName.text = review.user.name // Truy cập trực tiếp
+            binding.reviewRatingBar.rating = review.rating // API trả về 4.5 (Float)
             binding.tvReviewComment.text = review.comment
 
             // Tải avatar
             review.user.profilePic?.let { url ->
-                Glide.with(binding.imgAvatar.context).load(url).circleCrop().into(binding.imgAvatar)
+                Glide.with(binding.imgAvatar.context)
+                    .load(url)
+                    .apply(RequestOptions.circleCropTransform()) // Dùng .apply()
+                    .into(binding.imgAvatar)
             }
 
             // Xử lý Ảnh Review Đính kèm
             val reviewImages = review.reviewImages
             if (reviewImages?.isNotEmpty() == true) {
                 binding.rvReviewImages.visibility = View.VISIBLE
-                reviewImageAdapter.submitList(reviewImages) // Gán danh sách ảnh cho Adapter con
+                reviewImageAdapter.submitList(reviewImages)
             } else {
                 binding.rvReviewImages.visibility = View.GONE
             }
@@ -60,7 +64,6 @@ class ReviewAdapter : ListAdapter<ProductReview, ReviewAdapter.ReviewViewHolder>
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReviewViewHolder {
-        // Layout item_product_review.xml phải tồn tại
         val binding = ItemProductReviewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ReviewViewHolder(binding)
     }

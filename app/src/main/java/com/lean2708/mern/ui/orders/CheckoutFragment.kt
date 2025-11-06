@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.lean2708.mern.R
 import com.lean2708.mern.data.model.*
 import com.lean2708.mern.data.network.RetrofitInstance
@@ -15,6 +16,7 @@ import com.lean2708.mern.databinding.FragmentCheckoutBinding
 import com.lean2708.mern.repository.OrderRepository
 import com.lean2708.mern.repository.ProfileRepository
 import com.lean2708.mern.ui.home.activity.MainActivity
+import com.lean2708.mern.ui.orders.adapter.CheckoutProductAdapter // Adapter cho sản phẩm
 import com.lean2708.mern.ui.viewmodel.OrderViewModel
 import com.lean2708.mern.ui.viewmodel.OrderViewModelFactory
 import com.lean2708.mern.ui.viewmodel.Resource
@@ -28,28 +30,55 @@ class CheckoutFragment : Fragment() {
     private var _binding: FragmentCheckoutBinding? = null
     private val binding get() = _binding!!
 
-    // KHÔNG CÒN ADAPTER cho địa chỉ (Đã chuyển sang TextView tĩnh)
+    // SỬ DỤNG ADAPTER MỚI CHO SẢN PHẨM
+    private lateinit var checkoutProductAdapter: CheckoutProductAdapter
 
     private val viewModel: OrderViewModel by viewModels {
         OrderViewModelFactory(OrderRepository(RetrofitInstance.api))
     }
     private val profileRepository: ProfileRepository by lazy { ProfileRepository(RetrofitInstance.api) }
 
-    private var product: Product? = null
-    private var quantity: Int = 1
+    // SỬA: Dữ liệu truyền vào (Chấp nhận cả 2 kiểu)
+    private var itemsToCheckout: ArrayList<DetailedCartItem> = arrayListOf()
 
     private var allAddresses: List<Address> = emptyList()
     private var selectedAddress: Address? = null
     private var paymentMethod: String = "CASH"
 
     companion object {
-        const val ARG_PRODUCT = "product_data"
+        const val ARG_PRODUCT = "product_data" // "Mua ngay" (1 Product)
         const val ARG_QUANTITY = "quantity_data"
+        const val ARG_CART_ITEMS = "cart_items_data" // "Thanh toán" (List<DetailedCartItem>)
+
+        // HÀM 1: Dùng cho "Mua Ngay" (1 sản phẩm)
         fun newInstance(product: Product, quantity: Int): CheckoutFragment {
             val fragment = CheckoutFragment()
             fragment.arguments = Bundle().apply {
-                putParcelable(ARG_PRODUCT, product)
-                putInt(ARG_QUANTITY, quantity)
+                // Chuyển đổi 1 Product sang 1 List<DetailedCartItem>
+                val cartItem = DetailedCartItem(
+                    _id = product._id, // Dùng tạm ID sản phẩm
+                    productId = CartProduct( // Tạo CartProduct từ Product
+                        _id = product._id,
+                        productName = product.productName,
+                        brandName = product.brandName,
+                        category = product.category,
+                        productImage = product.productImage,
+                        price = product.price,
+                        sellingPrice = product.sellingPrice
+                    ),
+                    quantity = quantity,
+                    userId = "" // Không cần thiết ở UI
+                )
+                putParcelableArrayList(ARG_CART_ITEMS, arrayListOf(cartItem))
+            }
+            return fragment
+        }
+
+        // HÀM 2: Dùng cho "Thanh toán Giỏ hàng"
+        fun newInstance(items: ArrayList<DetailedCartItem>): CheckoutFragment {
+            val fragment = CheckoutFragment()
+            fragment.arguments = Bundle().apply {
+                putParcelableArrayList(ARG_CART_ITEMS, items)
             }
             return fragment
         }
@@ -57,8 +86,8 @@ class CheckoutFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        product = arguments?.getParcelable(ARG_PRODUCT)
-        quantity = arguments?.getInt(ARG_QUANTITY) ?: 1
+        // Lấy danh sách sản phẩm (Dùng chung cho cả 2 trường hợp)
+        itemsToCheckout = arguments?.getParcelableArrayList(ARG_CART_ITEMS) ?: arrayListOf()
     }
 
     override fun onCreateView(
@@ -73,10 +102,11 @@ class CheckoutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
 
-        setupProductInfo()
+        // SỬA: Gọi setup RecyclerView MỚI
+        setupCheckoutRecyclerView()
         setupObservers()
         setupListeners()
-        setupAddressResultListener() // Kích hoạt lắng nghe kết quả
+        setupAddressResultListener()
 
         viewModel.fetchDefaultAddress(profileRepository)
     }
@@ -86,11 +116,8 @@ class CheckoutFragment : Fragment() {
             ChangeAddressFragment.REQUEST_ADDRESS_KEY,
             viewLifecycleOwner
         ) { key, bundle ->
-
             val newAddress: Address? = bundle.getParcelable(ChangeAddressFragment.BUNDLE_ADDRESS_KEY)
-
             newAddress?.let {
-                // Cập nhật địa chỉ đã chọn và UI
                 selectedAddress = it
                 updateAddressUI(it)
                 binding.btnPlaceOrder.isEnabled = true
@@ -98,21 +125,17 @@ class CheckoutFragment : Fragment() {
         }
     }
 
-    private fun setupProductInfo() {
-        val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
+    // SỬA: Hàm này thay thế setupProductInfo()
+    private fun setupCheckoutRecyclerView() {
+        checkoutProductAdapter = CheckoutProductAdapter()
+        binding.rvCheckoutItems.adapter = checkoutProductAdapter
+        binding.rvCheckoutItems.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvCheckoutItems.isNestedScrollingEnabled = false // Ngăn cuộn con
 
-        binding.tvProductName.text = product?.productName ?: "Sản phẩm không xác định"
-        binding.tvQuantity.text = "x$quantity"
-        binding.tvUnitPrice.text = formatter.format(product?.sellingPrice ?: 0)
-
-        // Tải ảnh sản phẩm
-        product?.productImage?.firstOrNull()?.let { url ->
-            Glide.with(this).load(url).into(binding.imgProduct)
-        }
-
-        updateTotalSummary()
+        // Gán danh sách (1 hoặc nhiều item)
+        checkoutProductAdapter.submitList(itemsToCheckout)
+        updateTotalSummary() // Cập nhật tổng tiền
     }
-
 
     private fun setupObservers() {
         // 1. Lắng nghe địa chỉ (Tải toàn bộ List)
@@ -122,19 +145,15 @@ class CheckoutFragment : Fragment() {
                     @Suppress("UNCHECKED_CAST")
                     val addresses = resource.data as? List<Address> ?: emptyList()
                     allAddresses = addresses
-
-                    // Chọn địa chỉ mặc định (hoặc cái đầu tiên)
                     val defaultAddr = addresses.firstOrNull { it.isDefault } ?: addresses.firstOrNull()
                     selectedAddress = defaultAddr
-
-                    // CẬP NHẬT TEXT VIEW PHỤC HỒI
                     updateAddressUI(defaultAddr)
                     binding.btnPlaceOrder.isEnabled = defaultAddr != null
                 }
                 is Resource.Error -> {
                     binding.btnPlaceOrder.isEnabled = false
                     Toast.makeText(requireContext(), "Lỗi tải địa chỉ. Vui lòng thử lại.", Toast.LENGTH_SHORT).show()
-                    updateAddressUI(null) // Hiển thị trạng thái lỗi
+                    updateAddressUI(null)
                 }
                 is Resource.Loading -> { /* ... */ }
             }
@@ -147,7 +166,6 @@ class CheckoutFragment : Fragment() {
                 is Resource.Success<*> -> {
                     setLoading(false)
                     Toast.makeText(requireContext(), "Đặt hàng thành công!", Toast.LENGTH_LONG).show()
-
                     (activity as? MainActivity)?.selectBottomNavItem(R.id.nav_orders)
                     parentFragmentManager.popBackStack()
                 }
@@ -196,26 +214,28 @@ class CheckoutFragment : Fragment() {
     }
 
     private fun updateAddressUI(address: Address?) {
-        // Cập nhật TextView với địa chỉ đã chọn (TV ĐƠN GIẢN)
         binding.tvSelectedAddressDetail.text = address?.addressDetail ?: "Chưa có địa chỉ nào được chọn"
         binding.tvSelectedPhone.text = address?.phone?.let { "SĐT: $it" } ?: "SĐT: N/A"
-
         binding.btnPlaceOrder.isEnabled = address != null
     }
 
     private fun updateTotalSummary() {
-        val total = (product?.sellingPrice ?: 0) * quantity
+        // SỬA: Tính tổng tiền từ danh sách
+        val total = itemsToCheckout.sumOf { (it.productId.sellingPrice) * it.quantity }
         val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
         binding.tvTotalAmount.text = formatter.format(total)
     }
 
     private fun placeOrder() {
-        if (selectedAddress == null || product == null) {
+        if (selectedAddress == null || itemsToCheckout.isEmpty()) {
             Toast.makeText(requireContext(), "Thiếu thông tin đặt hàng.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val productList = listOf(CheckoutProduct(product!!._id, quantity))
+        // SỬA: Map từ List<DetailedCartItem> sang List<CheckoutProduct>
+        val productList = itemsToCheckout.map {
+            CheckoutProduct(productId = it.productId._id, quantity = it.quantity)
+        }
 
         val request = CreateOrderRequest(
             shippingAddressId = selectedAddress!!._id,

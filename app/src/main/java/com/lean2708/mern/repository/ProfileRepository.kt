@@ -23,4 +23,7 @@ class ProfileRepository(private val apiService: ApiService) {
     suspend fun createAddress(request: AddressRequest) = apiService.createAddress(request)
     suspend fun updateAddress(id: String, request: AddressRequest) = apiService.updateAddress(id, request)
     suspend fun deleteAddress(id: String) = apiService.deleteAddress(id)
+
+
+    suspend fun uploadImages(files: List<MultipartBody.Part>) = apiService.uploadReviewImages(files)
 }

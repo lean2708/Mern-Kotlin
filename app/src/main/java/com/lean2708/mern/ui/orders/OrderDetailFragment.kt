@@ -14,7 +14,8 @@ import com.lean2708.mern.R
 import com.lean2708.mern.data.model.Order
 import com.lean2708.mern.data.model.OrderItem
 import com.lean2708.mern.data.model.OrderProduct
-import com.lean2708.mern.data.model.ShippingAddress // ⚠️ CẦN PHẢI IMPORT ShippingAddress model
+import com.lean2708.mern.data.model.ShippingAddress
+import com.lean2708.mern.data.model.CheckReviewResponse // Cần import
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentOrderDetailBinding
 import com.lean2708.mern.databinding.ItemOrderDetailProductBinding
@@ -25,6 +26,7 @@ import com.lean2708.mern.ui.viewmodel.OrderViewModelFactory
 import com.lean2708.mern.ui.viewmodel.Resource
 import java.text.NumberFormat
 import java.util.Locale
+import android.util.Log
 
 class OrderDetailFragment : Fragment() {
     private var _binding: FragmentOrderDetailBinding? = null
@@ -36,6 +38,10 @@ class OrderDetailFragment : Fragment() {
     }
 
     private var orderId: String? = null
+
+    // Biến lưu trạng thái review
+    private var reviewStatusMap: Map<String, CheckReviewResponse> = emptyMap()
+    private var currentOrder: Order? = null
 
     companion object {
         const val ARG_ORDER_ID = "order_id"
@@ -76,20 +82,39 @@ class OrderDetailFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        itemAdapter = OrderItemAdapter()
+        // Thêm callback cho Adapter
+        itemAdapter = OrderItemAdapter(
+            onReviewClick = { productId, reviewId ->
+                navigateToReviewForm(productId, reviewId)
+            }
+        )
         binding.rvOrderItems.adapter = itemAdapter
         binding.rvOrderItems.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
         binding.rvOrderItems.isNestedScrollingEnabled = false // Ngăn cuộn con
     }
 
     private fun setupObservers() {
-        // Lắng nghe chi tiết đơn hàng
+        // 1. Lắng nghe chi tiết đơn hàng
         viewModel.orderDetail.observe(viewLifecycleOwner) { resource ->
             when (resource) {
                 is Resource.Loading -> setLoading(true)
                 is Resource.Success<*> -> {
                     setLoading(false)
-                    (resource.data as? Order)?.let { displayOrderDetails(it) }
+                    (resource.data as? Order)?.let { order ->
+                        currentOrder = order
+                        displayOrderDetails(order)
+
+                        Log.d("ReviewCheck", "Observer: Trạng thái đơn hàng: ${order.orderStatus}")
+                        Log.d("ReviewCheck", "Observer: So sánh với: ${OrderStatus.DELIVERED.value}")
+
+                        // KIỂM TRA NẾU ĐÃ GIAO HÀNG -> GỌI API 1 (Check Review)
+                        if (order.orderStatus == OrderStatus.DELIVERED.value) {
+                            Log.i("ReviewCheck", "Đơn hàng ĐÃ GIAO HÀNG. Đang gọi API Check Review...")
+                            viewModel.checkReviewStatusForItems(order.orderItems)
+                        } else {
+                            Log.w("ReviewCheck", "Đơn hàng CHƯA GIAO. Không gọi API Check Review.")
+                        }
+                    }
                 }
                 is Resource.Error<*> -> {
                     setLoading(false)
@@ -99,14 +124,30 @@ class OrderDetailFragment : Fragment() {
             }
         }
 
-        // Lắng nghe kết quả Hủy đơn hàng (API 3)
+        // 2. Lắng nghe KẾT QUẢ CHECK REVIEW (API 1)
+        viewModel.reviewStatusMap.observe(viewLifecycleOwner) { resource ->
+            if (resource is Resource.Success) {
+                Log.i("ReviewCheck", "Đã nhận kết quả Check Review. Cập nhật Adapter.")
+                reviewStatusMap = resource.data ?: emptyMap()
+                // Cập nhật lại Adapter với thông tin review
+                itemAdapter.setReviewStatusMap(reviewStatusMap)
+                itemAdapter.notifyDataSetChanged()
+            } else if (resource is Resource.Error) {
+                Log.e("ReviewCheck", "Lỗi khi Check Review: ${resource.message}")
+            }
+        }
+
+        // 3. Lắng nghe kết quả Hủy đơn hàng (API 3)
         viewModel.cancelOrderResult.observe(viewLifecycleOwner) { resource ->
             when (resource) {
+                is Resource.Loading -> setLoading(true)
                 is Resource.Success -> {
+                    setLoading(false)
                     Toast.makeText(requireContext(), "Đơn hàng đã hủy thành công!", Toast.LENGTH_SHORT).show()
-                    parentFragmentManager.popBackStack() // Quay lại màn hình OrdersFragment
+                    parentFragmentManager.popBackStack()
                 }
                 is Resource.Error -> {
+                    setLoading(false)
                     Toast.makeText(requireContext(), "Không thể hủy: ${resource.message}", Toast.LENGTH_LONG).show()
                 }
                 else -> Unit
@@ -120,27 +161,23 @@ class OrderDetailFragment : Fragment() {
         // Cập nhật tiêu đề và thông tin
         binding.tvOrderId.text = "Mã đơn hàng: #${order._id.takeLast(10)}"
         binding.tvOrderStatus.text = "Trạng thái: ${OrderStatus.fromValue(order.orderStatus)}"
-        binding.tvPaymentMethod.text = "Phương thức thanh toán: ${order.paymentMethod}" // Tạm thời
+        binding.tvPaymentMethod.text = "Phương thức thanh toán: ${order.paymentMethod}"
         binding.tvTotalAmount.text = "Tổng thanh toán: ${formatter.format(order.totalPrice)}"
 
-        // ⚠️ LOGIC MỚI: Xử lý trường ShippingAddress (có thể là String ID hoặc Object)
+        // Xử lý trường ShippingAddress (Object hoặc String ID)
         val shippingAddressObject = order.shippingAddress as? ShippingAddress
-
         if (shippingAddressObject != null) {
-            // Trường hợp địa chỉ là Object (API Get Detail/List đã populate)
             binding.tvAddressDetail.text = shippingAddressObject.addressDetail
             binding.tvPhone.text = "SĐT: ${shippingAddressObject.phone}"
-            // Cần thêm các TextView cho tên người nhận, tỉnh/thành phố nếu có trong layout
         } else {
-            // Trường hợp địa chỉ là String ID (API Create Order) hoặc null
             val addressId = order.shippingAddress as? String
-            binding.tvAddressDetail.text = if (addressId != null) "Địa chỉ ID: $addressId (Đang chờ load...)" else "Địa chỉ không xác định"
+            binding.tvAddressDetail.text = if (addressId != null) "Địa chỉ ID: $addressId" else "Địa chỉ không xác định"
             binding.tvPhone.text = "SĐT: N/A"
-            // Lưu ý: Nếu muốn hiển thị đầy đủ, bạn phải gọi API khác để lấy chi tiết địa chỉ
-            // nhưng tạm thời chỉ cần sửa lỗi crash.
         }
 
-        // Cập nhật danh sách sản phẩm
+        // Cập nhật danh sách sản phẩm (Truyền trạng thái vào Adapter)
+        itemAdapter.setOrderStatus(order.orderStatus)
+        itemAdapter.setReviewStatusMap(reviewStatusMap) // Gán map review hiện tại
         itemAdapter.submitList(order.orderItems)
 
         // Hiển thị/Ẩn nút HỦY ĐƠN HÀNG (Chỉ khi PENDING)
@@ -152,12 +189,21 @@ class OrderDetailFragment : Fragment() {
         }
     }
 
+    // Điều hướng đến Form Đánh giá
+    private fun navigateToReviewForm(productId: String, reviewId: String?) {
+        val reviewFragment = ReviewFormFragment.newInstance(productId, reviewId)
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, reviewFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
     private fun confirmCancelOrder(id: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Xác nhận Hủy Đơn")
             .setMessage("Bạn có chắc chắn muốn hủy đơn hàng này không? Thao tác này không thể hoàn tác.")
             .setPositiveButton("Hủy Đơn") { dialog, _ ->
-                viewModel.cancelOrder(id) // Gọi API Hủy
+                viewModel.cancelOrder(id)
                 dialog.dismiss()
             }
             .setNegativeButton("Không") { dialog, _ ->
@@ -175,24 +221,56 @@ class OrderDetailFragment : Fragment() {
         _binding = null
     }
 
-    // --- ADAPTER CHO ORDER ITEMS ---
-    class OrderItemAdapter : androidx.recyclerview.widget.ListAdapter<OrderItem, OrderItemAdapter.ItemViewHolder>(DiffCallback()) {
+    // --- ADAPTER CHO ORDER ITEMS (ĐÃ BỔ SUNG LOGIC REVIEW) ---
+    class OrderItemAdapter(
+        private val onReviewClick: (productId: String, reviewId: String?) -> Unit
+    ) : androidx.recyclerview.widget.ListAdapter<OrderItem, OrderItemAdapter.ItemViewHolder>(DiffCallback()) {
 
         private val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
+        private var orderStatus: String = "PENDING"
+        private var reviewStatusMap: Map<String, CheckReviewResponse> = emptyMap()
+
+        fun setOrderStatus(status: String) {
+            orderStatus = status
+        }
+        fun setReviewStatusMap(map: Map<String, CheckReviewResponse>) {
+            reviewStatusMap = map
+        }
 
         inner class ItemViewHolder(private val binding: ItemOrderDetailProductBinding) : RecyclerView.ViewHolder(binding.root) {
             fun bind(item: OrderItem) {
-                // SỬA LỖI: Ép kiểu product từ Any (@RawValue) sang OrderProduct an toàn
-                val productDetails = item.product as? OrderProduct
+                val productDetails = item.product as? OrderProduct ?: return
 
-                binding.tvProductName.text = productDetails?.productName ?: "Sản phẩm bị ẩn"
+                binding.tvProductName.text = productDetails.productName
                 binding.tvQuantity.text = "SL: x${item.quantity}"
                 binding.tvUnitPrice.text = formatter.format(item.unitPrice)
                 binding.tvTotalPrice.text = formatter.format(item.unitPrice * item.quantity)
 
-                // Truy cập an toàn productImage
-                productDetails?.productImage?.firstOrNull()?.let { url ->
+                productDetails.productImage.firstOrNull()?.let { url ->
                     Glide.with(binding.imgProduct.context).load(url).into(binding.imgProduct)
+                }
+
+                // --- LOGIC HIỂN THỊ NÚT ĐÁNH GIÁ (SỬA LỖI) ---
+                if (orderStatus == OrderStatus.DELIVERED.value) {
+                    val reviewInfo = reviewStatusMap[productDetails._id]
+
+                    if (reviewInfo != null) {
+                        binding.btnReview.visibility = View.VISIBLE
+
+                        // SỬA LỖI: Lấy reviewId từ reviewInfo.data._id
+                        val existingReviewId = reviewInfo.data?._id
+
+                        binding.btnReview.text = if (reviewInfo.hasReviewed) "Sửa đánh giá" else "Đánh giá ngay"
+
+                        binding.btnReview.setOnClickListener {
+                            // Truyền ID sản phẩm và ID review (nếu có)
+                            onReviewClick(productDetails._id, existingReviewId)
+                        }
+                    } else {
+                        binding.btnReview.visibility = View.GONE
+                    }
+                } else {
+                    binding.btnReview.visibility = View.GONE
                 }
             }
         }

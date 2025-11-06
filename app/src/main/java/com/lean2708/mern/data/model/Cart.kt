@@ -1,5 +1,6 @@
 package com.lean2708.mern.data.model
-
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
 // Request Body cho POST /api/addtoCart
 data class AddToCartRequest(
@@ -32,6 +33,7 @@ data class CartCountResponse(
     val success: Boolean
 )
 
+@Parcelize
 data class CartProduct(
     val _id: String,
     val productName: String,
@@ -39,16 +41,17 @@ data class CartProduct(
     val category: String,
     val productImage: List<String>,
     val price: Long,
-    val sellingPrice: Long,
-    // Thêm các trường khác nếu cần
-)
+    val sellingPrice: Long
+) : Parcelable
 
+// SỬA LỖI: THÊM @Parcelize VÀ : Parcelable
+@Parcelize
 data class DetailedCartItem(
     val _id: String,
-    val productId: CartProduct, // Chứa thông tin sản phẩm
+    val productId: CartProduct, // <-- Class này cũng phải là Parcelable
     val quantity: Int,
-    val userId: String,
-)
+    val userId: String
+) : Parcelable
 
 data class ViewCartResponse(
     val data: List<DetailedCartItem>,

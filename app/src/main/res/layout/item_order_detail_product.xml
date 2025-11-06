@@ -4,26 +4,24 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="10dp"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:paddingTop="10dp"> <androidx.cardview.widget.CardView
+    android:id="@+id/cardImage"
+    android:layout_width="60dp"
+    android:layout_height="60dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardImage"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="0dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/imgProduct"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@color/colorBackground"
-            tools:src="@tools:sample/backgrounds/scenic"/>
-    </androidx.cardview.widget.CardView>
+    <ImageView
+        android:id="@+id/imgProduct"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@color/colorBackground"
+        tools:src="@tools:sample/backgrounds/scenic"/>
+</androidx.cardview.widget.CardView>
 
     <TextView
         android:id="@+id/tvProductName"
@@ -69,7 +67,30 @@
         android:textStyle="bold"
         android:textColor="@color/colorPrimary"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/tvQuantity"
         tools:text="11.980.000đ"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnReview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Đánh giá ngay"
+        app:cornerRadius="8dp"
+        android:backgroundTint="@color/colorPrimary"
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:layout_marginTop="12dp"
+        app:layout_constraintTop_toBottomOf="@id/tvQuantity"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        android:layout_marginTop="12dp"
+        app:layout_constraintTop_toBottomOf="@id/btnReview"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

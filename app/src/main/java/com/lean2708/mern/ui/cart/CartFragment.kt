@@ -7,14 +7,18 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.lean2708.mern.R
+import com.lean2708.mern.data.model.CheckoutProduct // Cần thiết
 import com.lean2708.mern.data.model.DetailedCartItem
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentCartBinding
 import com.lean2708.mern.databinding.ItemCartProductBinding
 import com.lean2708.mern.repository.CartRepository
+import com.lean2708.mern.ui.orders.CheckoutFragment
 import com.lean2708.mern.ui.viewmodel.CartActionResource
 import com.lean2708.mern.ui.viewmodel.CartViewModel
 import com.lean2708.mern.ui.viewmodel.CartViewModelFactory
@@ -28,7 +32,6 @@ class CartFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var cartAdapter: CartAdapter
 
-    // TODO: Cần tạo CartViewModelFactory
     private val viewModel: CartViewModel by viewModels {
         CartViewModelFactory(CartRepository(RetrofitInstance.api))
     }
@@ -46,6 +49,8 @@ class CartFragment : Fragment() {
         setupRecyclerView()
         setupObservers()
         setupListeners()
+
+        viewModel.viewCartProducts()
     }
 
     private fun setupRecyclerView() {
@@ -55,19 +60,50 @@ class CartFragment : Fragment() {
             },
             onDelete = { cartId ->
                 viewModel.deleteCartItem(cartId)
+            },
+            onToggleChecked = { cartId, isChecked ->
+                viewModel.toggleItemSelection(cartId, isChecked)
+            },
+            isChecked = { cartId ->
+                viewModel.selectedItems.value?.contains(cartId) ?: false
             }
         )
         binding.rvCartItems.adapter = cartAdapter
+        binding.rvCartItems.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
     }
 
     private fun setupListeners() {
         binding.btnCheckout.setOnClickListener {
-            Toast.makeText(requireContext(), "Chuyển tới thanh toán", Toast.LENGTH_SHORT).show()
-            // TODO: Logic điều hướng thanh toán
+            val selectedIds = viewModel.selectedItems.value ?: emptySet()
+            if (selectedIds.isEmpty()) {
+                Toast.makeText(requireContext(), "Vui lòng chọn ít nhất 1 sản phẩm", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val allItems = (viewModel.cartItems.value as? Resource.Success)?.data ?: emptyList()
+
+            // SỬA LỖI: Lấy danh sách DetailedCartItem đầy đủ
+            val selectedItems = allItems.filter { it._id in selectedIds }
+
+            // Điều hướng đến CheckoutFragment (truyền List<DetailedCartItem>)
+            navigateToCheckout(selectedItems)
         }
     }
 
+    // SỬA LỖI: Hàm này phải nhận List<DetailedCartItem>
+    private fun navigateToCheckout(items: List<DetailedCartItem>) {
+        // Đảm bảo DetailedCartItem đã là Parcelable
+        val checkoutFragment = CheckoutFragment.newInstance(ArrayList(items))
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, checkoutFragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
     private fun setupObservers() {
+        val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
+
         // 1. Lắng nghe danh sách giỏ hàng
         viewModel.cartItems.observe(viewLifecycleOwner) { resource ->
             when (resource) {
@@ -77,7 +113,9 @@ class CartFragment : Fragment() {
                     @Suppress("UNCHECKED_CAST")
                     val items = resource.data as? List<DetailedCartItem> ?: emptyList()
                     cartAdapter.submitList(items)
-                    updateSummary(items)
+
+                    val selectedIds = viewModel.selectedItems.value ?: emptySet()
+                    updateSummary(items, selectedIds)
                 }
                 is Resource.Error<*> -> {
                     binding.progressBar.visibility = View.GONE
@@ -86,45 +124,54 @@ class CartFragment : Fragment() {
             }
         }
 
-        // 2. Lắng nghe kết quả thao tác (Update/Delete)
+        // 2. Lắng nghe các Lựa chọn (CheckBox)
+        viewModel.selectedItems.observe(viewLifecycleOwner) { selectedIds ->
+            val items = (viewModel.cartItems.value as? Resource.Success)?.data ?: emptyList()
+            updateSummary(items, selectedIds)
+            cartAdapter.notifyDataSetChanged()
+        }
+
+        // 3. Lắng nghe kết quả thao tác (Update/Delete)
         viewModel.cartActionResult.observe(viewLifecycleOwner) { resource ->
             when(resource) {
                 is CartActionResource.Loading -> binding.btnCheckout.isEnabled = false
-                is CartActionResource.Success -> { // <-- SỬA LỖI ÉP KIỂU
+                is CartActionResource.Success -> {
                     binding.btnCheckout.isEnabled = true
-                    Toast.makeText(requireContext(), resource.msg, Toast.LENGTH_SHORT).show() // Dùng resource.msg
-                    // Rất quan trọng: Tải lại giỏ hàng sau khi thao tác
-                    viewModel.viewCartProducts()
+                    Toast.makeText(requireContext(), resource.msg, Toast.LENGTH_SHORT).show()
                 }
-                is CartActionResource.Error -> { // <-- SỬA LỖI ÉP KIỂU
+                is CartActionResource.Error -> {
                     binding.btnCheckout.isEnabled = true
-                    Toast.makeText(requireContext(), resource.msg, Toast.LENGTH_LONG).show() // Dùng resource.msg
+                    Toast.makeText(requireContext(), resource.msg, Toast.LENGTH_LONG).show()
                 }
                 else -> Unit
             }
         }
     }
 
-    private fun updateSummary(items: List<DetailedCartItem>) {
-        val count = items.size
-        val total = viewModel.calculateTotalPrice(items)
+    private fun updateSummary(items: List<DetailedCartItem>, selectedIds: Set<String>) {
+        val total = viewModel.calculateTotalPrice(items, selectedIds)
         val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
 
-        binding.tvCartTitle.text = "Giỏ hàng của tôi ($count sản phẩm)"
+        binding.tvCartTitle.text = "Giỏ hàng của tôi (${items.size} sản phẩm)"
         binding.tvTotalPrice.text = formatter.format(total)
-        binding.bottomCheckoutLayout.visibility = if (count > 0) View.VISIBLE else View.GONE
+        binding.bottomCheckoutLayout.visibility = if (items.isNotEmpty()) View.VISIBLE else View.GONE
+
+        binding.btnCheckout.isEnabled = selectedIds.isNotEmpty()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        viewModel.clearSelections() // Xóa lựa chọn khi rời khỏi
     }
 
     // --- ADAPTER ---
     class CartAdapter(
         private val onQuantityChange: (String, Int) -> Unit,
-        private val onDelete: (String) -> Unit
-    ) : androidx.recyclerview.widget.ListAdapter<DetailedCartItem, CartAdapter.CartViewHolder>(DiffCallback()) {
+        private val onDelete: (String) -> Unit,
+        private val onToggleChecked: (String, Boolean) -> Unit,
+        private val isChecked: (String) -> Boolean
+    ) : ListAdapter<DetailedCartItem, CartAdapter.CartViewHolder>(DiffCallback()) {
 
         inner class CartViewHolder(private val binding: ItemCartProductBinding) : RecyclerView.ViewHolder(binding.root) {
             fun bind(item: DetailedCartItem) {
@@ -144,14 +191,20 @@ class CartFragment : Fragment() {
                     if (item.quantity > 1) {
                         onQuantityChange(item._id, item.quantity - 1)
                     } else {
-                        // Có thể hiển thị dialog xác nhận xóa nếu quantity = 1
                         onDelete(item._id)
                     }
+                }
+
+                // Xử lý CheckBox
+                binding.cbSelectItem.setOnCheckedChangeListener(null)
+                binding.cbSelectItem.isChecked = isChecked(item._id)
+                binding.cbSelectItem.setOnCheckedChangeListener { _, isChecked ->
+                    onToggleChecked(item._id, isChecked)
                 }
             }
         }
 
-        private class DiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<DetailedCartItem>() {
+        private class DiffCallback : DiffUtil.ItemCallback<DetailedCartItem>() {
             override fun areItemsTheSame(oldItem: DetailedCartItem, newItem: DetailedCartItem): Boolean = oldItem._id == newItem._id
             override fun areContentsTheSame(oldItem: DetailedCartItem, newItem: DetailedCartItem): Boolean = oldItem == newItem
         }

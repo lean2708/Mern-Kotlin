@@ -30,6 +30,9 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
     private val _cartCount = MutableLiveData<Int>()
     val cartCount: LiveData<Int> = _cartCount
 
+    // 4. DANH SÁCH CÁC ITEM ĐÃ CHỌN (Lưu trữ bằng Cart Item ID)
+    private val _selectedItems = MutableLiveData<Set<String>>(emptySet())
+    val selectedItems: LiveData<Set<String>> = _selectedItems
 
     init {
         viewCartProducts()
@@ -50,6 +53,30 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
                 _cartItems.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
             }
         }
+    }
+
+    // --- HÀM XỬ LÝ CHỌN ITEM ---
+    fun toggleItemSelection(cartItemId: String, isChecked: Boolean) {
+        val currentSet = _selectedItems.value ?: emptySet()
+        val newSet = currentSet.toMutableSet()
+        if (isChecked) {
+            newSet.add(cartItemId)
+        } else {
+            newSet.remove(cartItemId)
+        }
+        _selectedItems.postValue(newSet)
+    }
+
+    // --- XÓA CÁC LỰA CHỌN KHI RỜI KHỎI MÀN HÌNH ---
+    fun clearSelections() {
+        _selectedItems.postValue(emptySet())
+    }
+
+    // --- TÍNH TỔNG TIỀN DỰA TRÊN CÁC LỰA CHỌN ---
+    fun calculateTotalPrice(items: List<DetailedCartItem>, selectedIds: Set<String>): Long {
+        return items
+            .filter { it._id in selectedIds } // Chỉ tính tiền các item được chọn
+            .sumOf { it.productId.sellingPrice * it.quantity }
     }
 
     // --- UPDATE (Cập nhật số lượng) ---
@@ -103,11 +130,4 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
             }
         }
     }
-
-    // Hàm tính tổng tiền (client-side)
-    fun calculateTotalPrice(items: List<DetailedCartItem>): Long {
-        return items.sumOf { it.productId.sellingPrice * it.quantity }
-    }
 }
-
-// TODO: Cần tạo CartViewModelFactory (tương tự như các factory khác)

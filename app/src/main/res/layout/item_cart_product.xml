@@ -14,12 +14,21 @@
         android:layout_height="wrap_content"
         android:padding="12dp">
 
+        <CheckBox
+            android:id="@+id/cbSelectItem"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+
         <ImageView
             android:id="@+id/imgProduct"
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:scaleType="centerCrop"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/cbSelectItem"
             app:layout_constraintTop_toTopOf="parent"
             tools:src="@color/colorPrimary"/>
 
@@ -67,7 +76,8 @@
             android:orientation="horizontal"
             android:layout_marginTop="16dp"
             app:layout_constraintStart_toStartOf="@id/tvProductName"
-            app:layout_constraintTop_toBottomOf="@id/tvSellingPrice">
+            app:layout_constraintTop_toBottomOf="@id/tvSellingPrice"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <ImageButton
                 android:id="@+id/btnDecrease"
@@ -95,7 +105,5 @@
                 android:background="@drawable/bg_button_orange"
                 android:contentDescription="Tăng số lượng"/>
         </LinearLayout>
-
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
