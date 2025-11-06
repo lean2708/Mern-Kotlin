@@ -6,13 +6,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.lean2708.mern.R
-import com.lean2708.mern.data.model.CheckoutProduct // Cần thiết
+import com.lean2708.mern.data.model.CheckoutProduct
 import com.lean2708.mern.data.model.DetailedCartItem
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentCartBinding
@@ -32,7 +32,8 @@ class CartFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var cartAdapter: CartAdapter
 
-    private val viewModel: CartViewModel by viewModels {
+    // SỬA LỖI: Sử dụng activityViewModels để chia sẻ ViewModel với MainActivity
+    private val viewModel: CartViewModel by activityViewModels {
         CartViewModelFactory(CartRepository(RetrofitInstance.api))
     }
 
@@ -49,8 +50,15 @@ class CartFragment : Fragment() {
         setupRecyclerView()
         setupObservers()
         setupListeners()
+        // Không gọi API ở đây nữa
+    }
 
+    // SỬA LỖI "LOAD MÃI": Chuyển logic tải dữ liệu vào onResume()
+    override fun onResume() {
+        super.onResume()
+        // Tải lại giỏ hàng MỖI KHI quay lại tab này
         viewModel.viewCartProducts()
+        viewModel.clearSelections() // Xóa các checkbox đã chọn
     }
 
     private fun setupRecyclerView() {
@@ -81,16 +89,13 @@ class CartFragment : Fragment() {
             }
 
             val allItems = (viewModel.cartItems.value as? Resource.Success)?.data ?: emptyList()
-
-            // SỬA LỖI: Lấy danh sách DetailedCartItem đầy đủ
             val selectedItems = allItems.filter { it._id in selectedIds }
 
-            // Điều hướng đến CheckoutFragment (truyền List<DetailedCartItem>)
             navigateToCheckout(selectedItems)
         }
     }
 
-    // SỬA LỖI: Hàm này phải nhận List<DetailedCartItem>
+    // Điều hướng đến Checkout (với danh sách)
     private fun navigateToCheckout(items: List<DetailedCartItem>) {
         // Đảm bảo DetailedCartItem đã là Parcelable
         val checkoutFragment = CheckoutFragment.newInstance(ArrayList(items))
@@ -162,7 +167,7 @@ class CartFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        viewModel.clearSelections() // Xóa lựa chọn khi rời khỏi
+        // Không cần clearSelections() ở đây nữa
     }
 
     // --- ADAPTER ---

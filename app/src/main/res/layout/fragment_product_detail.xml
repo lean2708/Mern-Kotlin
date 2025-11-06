@@ -59,7 +59,6 @@
                     app:layout_constraintEnd_toEndOf="parent"/>
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -183,6 +182,18 @@
                 tools:itemCount="2"
                 android:nestedScrollingEnabled="false"
                 android:paddingHorizontal="12dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewAllReviews"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Xem tất cả đánh giá"
+                android:layout_marginTop="8dp"
+                android:layout_gravity="center_horizontal"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:cornerRadius="8dp"/>
 
             <TextView
                 android:id="@+id/tvSuggestedTitle"

@@ -7,7 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import com.bumptech.glide.Glide
 import com.google.android.material.tabs.TabLayoutMediator
 import com.lean2708.mern.R
@@ -27,7 +27,7 @@ import java.util.Locale
 import com.lean2708.mern.data.local.SessionManager
 import com.lean2708.mern.ui.auth.LoginActivity
 import android.content.Intent
-import com.lean2708.mern.ui.orders.CheckoutFragment // CẦN IMPORT
+import com.lean2708.mern.ui.orders.CheckoutFragment
 
 class ProductDetailFragment : Fragment() {
 
@@ -41,11 +41,16 @@ class ProductDetailFragment : Fragment() {
     private var currentProduct: Product? = null
     private val sessionManager by lazy { SessionManager(requireContext()) }
 
-    private val viewModel: HomeViewModel by viewModels {
+    // SỬA: Dùng chung ViewModel với Activity (để AllReviewsFragment có thể truy cập)
+    private val viewModel: HomeViewModel by activityViewModels {
         HomeViewModelFactory(HomeRepository(RetrofitInstance.api))
     }
 
     private var productId: String? = null
+
+    // Biến lưu trữ danh sách review đầy đủ
+    private var fullReviewList: List<ProductReview> = emptyList()
+    private val reviewLimit = 2 // Giới hạn 2 review ban đầu
 
     companion object {
         const val ARG_PRODUCT_ID = "product_id"
@@ -83,7 +88,9 @@ class ProductDetailFragment : Fragment() {
             setupObservers()
             setupListeners()
 
+            // Gọi API
             viewModel.fetchProductDetails(productId!!)
+            viewModel.fetchProductReviews(productId!!) // Gọi API review
         } else {
             Toast.makeText(requireContext(), "Lỗi: Không tìm thấy ID sản phẩm", Toast.LENGTH_LONG).show()
         }
@@ -113,8 +120,6 @@ class ProductDetailFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        // ... (Lắng nghe các LiveData giữ nguyên) ...
-
         // 1. Lắng nghe chi tiết sản phẩm
         viewModel.productDetails.observe(viewLifecycleOwner) { resource ->
             when (resource) {
@@ -154,18 +159,39 @@ class ProductDetailFragment : Fragment() {
             }
         }
 
-        // 3. Lắng nghe Reviews
+        // 3. Lắng nghe Reviews (ĐÃ SỬA ĐỔI)
         viewModel.productReviews.observe(viewLifecycleOwner) { resource ->
             when(resource) {
                 is Resource.Success<*> -> {
                     @Suppress("UNCHECKED_CAST")
-                    val reviews = resource.data as? List<ProductReview>
-                    reviewAdapter.submitList(reviews)
-                    if (reviews?.isEmpty() == true) {
+                    val reviews = resource.data as? List<ProductReview> ?: emptyList()
+                    fullReviewList = reviews // 1. Lưu lại danh sách đầy đủ
+
+                    if (reviews.isEmpty()) {
                         binding.tvReviewTitle.text = "Đánh giá và Nhận xét (Chưa có)"
+                        binding.btnViewAllReviews.visibility = View.GONE
+                    } else {
+                        // Cập nhật tiêu đề
+                        binding.tvReviewTitle.text = "Đánh giá và Nhận xét (${reviews.size})"
+
+                        // 2. Kiểm tra xem có cần "Xem thêm" không
+                        if (reviews.size > reviewLimit) {
+                            // Hiển thị list rút gọn
+                            reviewAdapter.submitList(reviews.take(reviewLimit))
+                            // Hiển thị nút "Xem thêm"
+                            binding.btnViewAllReviews.visibility = View.VISIBLE
+                            binding.btnViewAllReviews.text = "Xem tất cả ${reviews.size} đánh giá"
+                        } else {
+                            // Hiển thị full list (vì ít hơn limit)
+                            reviewAdapter.submitList(reviews)
+                            binding.btnViewAllReviews.visibility = View.GONE
+                        }
                     }
                 }
-                is Resource.Error -> binding.tvReviewTitle.visibility = View.GONE
+                is Resource.Error -> {
+                    binding.tvReviewTitle.visibility = View.GONE
+                    binding.btnViewAllReviews.visibility = View.GONE
+                }
                 else -> Unit
             }
         }
@@ -223,7 +249,15 @@ class ProductDetailFragment : Fragment() {
             .addToBackStack(null)
             .commit()
     }
-    // ------------------------------------------------
+
+    // MỚI: Hàm điều hướng sang trang Tất cả Review
+    private fun navigateToAllReviews(productId: String) {
+        val allReviewsFragment = AllReviewsFragment.newInstance(productId)
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, allReviewsFragment)
+            .addToBackStack(null) // Cho phép Back
+            .commit()
+    }
 
     private fun isUserLoggedIn(): Boolean {
         return sessionManager.fetchAuthToken() != null
@@ -254,6 +288,13 @@ class ProductDetailFragment : Fragment() {
             currentProduct?.let { product ->
                 viewModel.addToCart(product._id)
             } ?: Toast.makeText(requireContext(), "Sản phẩm chưa sẵn sàng.", Toast.LENGTH_SHORT).show()
+        }
+
+        // SỬA: Listener cho nút "Xem thêm"
+        binding.btnViewAllReviews.setOnClickListener {
+            productId?.let {
+                navigateToAllReviews(it) // Điều hướng sang Fragment mới
+            }
         }
     }
 

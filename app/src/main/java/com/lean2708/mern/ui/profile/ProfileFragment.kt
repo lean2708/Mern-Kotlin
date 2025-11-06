@@ -7,7 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import com.bumptech.glide.Glide
 import com.lean2708.mern.R
 import com.lean2708.mern.data.local.SessionManager
@@ -16,9 +16,10 @@ import com.lean2708.mern.databinding.FragmentProfileBinding
 import com.lean2708.mern.repository.ProfileRepository
 import com.lean2708.mern.ui.auth.LoginActivity
 
-// === SỬA LỖI 1: THÊM CÁC IMPORT THIẾU ===
 import com.lean2708.mern.ui.home.activity.MainActivity
-// =========================================
+import com.lean2708.mern.ui.profile.AddressListFragment
+import com.lean2708.mern.ui.profile.EditProfileFragment
+import com.lean2708.mern.ui.profile.ChangePasswordFragment
 
 import com.lean2708.mern.ui.viewmodel.ProfileViewModel
 import com.lean2708.mern.ui.viewmodel.ProfileViewModelFactory
@@ -31,7 +32,8 @@ class ProfileFragment : Fragment() {
 
     private val sessionManager by lazy { SessionManager(requireContext()) }
 
-    private val viewModel: ProfileViewModel by viewModels {
+    // SỬA LỖI "LOAD MÃI": Dùng 'activityViewModels'
+    private val viewModel: ProfileViewModel by activityViewModels {
         ProfileViewModelFactory(ProfileRepository(RetrofitInstance.api))
     }
 
@@ -45,9 +47,13 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.fetchUserDetails()
-        setupObservers()
 
+        // SỬA: Chỉ gọi API nếu dữ liệu chưa có (để tránh load lại khi quay về)
+        if (viewModel.userDetails.value == null) {
+            viewModel.fetchUserDetails()
+        }
+
+        setupObservers()
         setupClickListeners()
     }
 
@@ -65,7 +71,8 @@ class ProfileFragment : Fragment() {
                         Glide.with(this)
                             .load(user.profilePic)
                             .circleCrop()
-                            .placeholder(R.drawable.ic_profile)
+                            .placeholder(R.drawable.ic_profile) // Giả định bạn có ic_profile
+                            .error(R.drawable.ic_profile) // Hiển thị ảnh mặc định nếu lỗi
                             .into(binding.imgAvatar)
                     }
                 }
@@ -99,9 +106,7 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // === SỬA LỖI 2: CẬP NHẬT HÀM navigateTo ĐỂ CHẤP NHẬN THAM SỐ title ===
     private fun navigateTo(fragment: Fragment, title: String) {
-        // Gọi hàm helper trong MainActivity để cập nhật tiêu đề (nếu cần)
         (activity as? MainActivity)?.updateToolbarTitle(title)
 
         parentFragmentManager.beginTransaction()

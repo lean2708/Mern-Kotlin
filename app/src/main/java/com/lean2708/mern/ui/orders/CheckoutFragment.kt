@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -13,10 +14,13 @@ import com.lean2708.mern.R
 import com.lean2708.mern.data.model.*
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentCheckoutBinding
+import com.lean2708.mern.repository.CartRepository // MỚI
 import com.lean2708.mern.repository.OrderRepository
 import com.lean2708.mern.repository.ProfileRepository
 import com.lean2708.mern.ui.home.activity.MainActivity
-import com.lean2708.mern.ui.orders.adapter.CheckoutProductAdapter // Adapter cho sản phẩm
+import com.lean2708.mern.ui.orders.adapter.CheckoutProductAdapter
+import com.lean2708.mern.ui.viewmodel.CartViewModel // MỚI
+import com.lean2708.mern.ui.viewmodel.CartViewModelFactory // MỚI
 import com.lean2708.mern.ui.viewmodel.OrderViewModel
 import com.lean2708.mern.ui.viewmodel.OrderViewModelFactory
 import com.lean2708.mern.ui.viewmodel.Resource
@@ -30,15 +34,20 @@ class CheckoutFragment : Fragment() {
     private var _binding: FragmentCheckoutBinding? = null
     private val binding get() = _binding!!
 
-    // SỬ DỤNG ADAPTER MỚI CHO SẢN PHẨM
     private lateinit var checkoutProductAdapter: CheckoutProductAdapter
 
+    // ViewModel cho logic Đặt hàng (API CreateOrder)
     private val viewModel: OrderViewModel by viewModels {
         OrderViewModelFactory(OrderRepository(RetrofitInstance.api))
     }
+    // ViewModel cho logic Giỏ hàng (Để xóa item sau khi đặt)
+    private val cartViewModel: CartViewModel by activityViewModels {
+        CartViewModelFactory(CartRepository(RetrofitInstance.api))
+    }
+
     private val profileRepository: ProfileRepository by lazy { ProfileRepository(RetrofitInstance.api) }
 
-    // SỬA: Dữ liệu truyền vào (Chấp nhận cả 2 kiểu)
+    // Dữ liệu truyền vào (Chấp nhận cả Mua ngay và Giỏ hàng)
     private var itemsToCheckout: ArrayList<DetailedCartItem> = arrayListOf()
 
     private var allAddresses: List<Address> = emptyList()
@@ -46,9 +55,7 @@ class CheckoutFragment : Fragment() {
     private var paymentMethod: String = "CASH"
 
     companion object {
-        const val ARG_PRODUCT = "product_data" // "Mua ngay" (1 Product)
-        const val ARG_QUANTITY = "quantity_data"
-        const val ARG_CART_ITEMS = "cart_items_data" // "Thanh toán" (List<DetailedCartItem>)
+        const val ARG_CART_ITEMS = "cart_items_data"
 
         // HÀM 1: Dùng cho "Mua Ngay" (1 sản phẩm)
         fun newInstance(product: Product, quantity: Int): CheckoutFragment {
@@ -56,7 +63,7 @@ class CheckoutFragment : Fragment() {
             fragment.arguments = Bundle().apply {
                 // Chuyển đổi 1 Product sang 1 List<DetailedCartItem>
                 val cartItem = DetailedCartItem(
-                    _id = product._id, // Dùng tạm ID sản phẩm
+                    _id = product._id, // Dùng tạm ID sản phẩm làm Cart ID
                     productId = CartProduct( // Tạo CartProduct từ Product
                         _id = product._id,
                         productName = product.productName,
@@ -67,7 +74,7 @@ class CheckoutFragment : Fragment() {
                         sellingPrice = product.sellingPrice
                     ),
                     quantity = quantity,
-                    userId = "" // Không cần thiết ở UI
+                    userId = ""
                 )
                 putParcelableArrayList(ARG_CART_ITEMS, arrayListOf(cartItem))
             }
@@ -86,7 +93,6 @@ class CheckoutFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Lấy danh sách sản phẩm (Dùng chung cho cả 2 trường hợp)
         itemsToCheckout = arguments?.getParcelableArrayList(ARG_CART_ITEMS) ?: arrayListOf()
     }
 
@@ -102,8 +108,7 @@ class CheckoutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
 
-        // SỬA: Gọi setup RecyclerView MỚI
-        setupCheckoutRecyclerView()
+        setupCheckoutRecyclerView() // Setup RecyclerView sản phẩm
         setupObservers()
         setupListeners()
         setupAddressResultListener()
@@ -125,16 +130,15 @@ class CheckoutFragment : Fragment() {
         }
     }
 
-    // SỬA: Hàm này thay thế setupProductInfo()
+    // Hiển thị danh sách sản phẩm (Mua ngay hoặc Giỏ hàng)
     private fun setupCheckoutRecyclerView() {
         checkoutProductAdapter = CheckoutProductAdapter()
         binding.rvCheckoutItems.adapter = checkoutProductAdapter
         binding.rvCheckoutItems.layoutManager = LinearLayoutManager(requireContext())
-        binding.rvCheckoutItems.isNestedScrollingEnabled = false // Ngăn cuộn con
+        binding.rvCheckoutItems.isNestedScrollingEnabled = false
 
-        // Gán danh sách (1 hoặc nhiều item)
         checkoutProductAdapter.submitList(itemsToCheckout)
-        updateTotalSummary() // Cập nhật tổng tiền
+        updateTotalSummary()
     }
 
     private fun setupObservers() {
@@ -166,6 +170,12 @@ class CheckoutFragment : Fragment() {
                 is Resource.Success<*> -> {
                     setLoading(false)
                     Toast.makeText(requireContext(), "Đặt hàng thành công!", Toast.LENGTH_LONG).show()
+
+                    // SỬA LỖI: GỌI HÀM XÓA GIỎ HÀNG (Nếu là thanh toán từ Giỏ hàng)
+                    // (Chỉ xóa nếu 'Mua ngay' không dùng chung logic item)
+                    // Để an toàn, ta luôn gọi hàm xóa các item đã chọn
+                    cartViewModel.clearSelectedItemsFromCart()
+
                     (activity as? MainActivity)?.selectBottomNavItem(R.id.nav_orders)
                     parentFragmentManager.popBackStack()
                 }

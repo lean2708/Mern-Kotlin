@@ -4,6 +4,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.switchMap // Import cho switchMap
+import androidx.lifecycle.liveData      // Import cho liveData builder
 import com.lean2708.mern.data.model.*
 import com.lean2708.mern.repository.OrderRepository
 import com.lean2708.mern.repository.ProfileRepository
@@ -26,18 +28,23 @@ enum class OrderStatus(val value: String, val vietnamese: String) {
 
 class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
 
-    // --- LIVE DATA CƠ BẢN ---
-    private val _orders = MutableLiveData<Resource<List<Order>>>()
-    val orders: LiveData<Resource<List<Order>>> = _orders
+    // --- 1. BIẾN LIVE DATA ĐẦU VÀO (Input) ---
+    private val _selectedStatus = MutableLiveData(OrderStatus.PENDING)
+    val selectedStatus: LiveData<OrderStatus> = _selectedStatus
 
+    // --- 2. LIVE DATA ĐẦU RA (Output - Dùng switchMap) ---
+    // Fragment sẽ lắng nghe LiveData này
+    val orders: LiveData<Resource<List<Order>>> = _selectedStatus.switchMap { status ->
+        // Tự động gọi hàm này mỗi khi _selectedStatus thay đổi
+        fetchOrdersByStatusReactive(status.value)
+    }
+
+    // --- CÁC LIVE DATA CƠ BẢN KHÁC ---
     private val _orderDetail = MutableLiveData<Resource<Order>>()
     val orderDetail: LiveData<Resource<Order>> = _orderDetail
 
     private val _cancelOrderResult = MutableLiveData<Resource<Order>>()
     val cancelOrderResult: LiveData<Resource<Order>> = _cancelOrderResult
-
-    private val _selectedStatus = MutableLiveData(OrderStatus.PENDING)
-    val selectedStatus: LiveData<OrderStatus> = _selectedStatus
 
     // --- LIVE DATA CHO CHECKOUT ---
     private val _defaultAddress = MutableLiveData<Resource<List<Address>>>() // Trả về List
@@ -56,21 +63,22 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
     private val _reviewStatusMap = MutableLiveData<Resource<Map<String, CheckReviewResponse>>>()
     val reviewStatusMap: LiveData<Resource<Map<String, CheckReviewResponse>>> = _reviewStatusMap
 
-    private val _reviewDetail = MutableLiveData<Resource<DetailedProductReview>>() // Sửa: Dùng Detailed
+    private val _reviewDetail = MutableLiveData<Resource<DetailedProductReview>>() // Dùng Detailed
     val reviewDetail: LiveData<Resource<DetailedProductReview>> = _reviewDetail
 
-    private val _reviewSubmitResult = MutableLiveData<Resource<SimpleProductReview>>() // Sửa: Dùng Simple
+    private val _reviewSubmitResult = MutableLiveData<Resource<SimpleProductReview>>() // Dùng Simple
     val reviewSubmitResult: LiveData<Resource<SimpleProductReview>> = _reviewSubmitResult
 
     init {
-        // Tải đơn hàng mặc định khi ViewModel khởi tạo
-        fetchOrdersByStatus(selectedStatus.value!!.value)
+        // KHÔNG CẦN GỌI GÌ TRONG INIT NỮA
+        // switchMap sẽ tự động kích hoạt khi _selectedStatus có giá trị ban đầu
     }
 
+    // --- HÀM THAY ĐỔI TRẠNG THÁI (Input) ---
     fun setSelectedStatus(status: OrderStatus) {
+        // Chỉ cần thay đổi giá trị, switchMap sẽ tự làm phần còn lại
         if (_selectedStatus.value != status) {
             _selectedStatus.value = status
-            fetchOrdersByStatus(status.value)
         }
     }
 
@@ -85,20 +93,19 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
         }
     }
 
-    // --- API 1: Lấy danh sách đơn hàng ---
-    fun fetchOrdersByStatus(status: String) {
-        _orders.postValue(Resource.Loading())
-        viewModelScope.launch {
-            try {
-                val response = repository.getOrdersByStatus(status)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    _orders.postValue(Resource.Success(response.body()!!.data))
-                } else {
-                    _orders.postValue(Resource.Error(parseError(response)))
-                }
-            } catch (e: Exception) {
-                _orders.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
+
+    // --- API 1: Lấy danh sách đơn hàng (Reactive Version) ---
+    private fun fetchOrdersByStatusReactive(status: String): LiveData<Resource<List<Order>>> = liveData {
+        emit(Resource.Loading()) // <-- Gửi trạng thái Loading
+        try {
+            val response = repository.getOrdersByStatus(status)
+            if (response.isSuccessful && response.body()?.success == true) {
+                emit(Resource.Success(response.body()!!.data)) // <-- Gửi Success
+            } else {
+                emit(Resource.Error(parseError(response)))
             }
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Lỗi mạng"))
         }
     }
 
@@ -121,17 +128,19 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
 
     // --- API 3: Hủy đơn hàng ---
     fun cancelOrder(orderId: String) {
-        _orderDetail.postValue(Resource.Loading())
+        _cancelOrderResult.postValue(Resource.Loading())
         viewModelScope.launch {
             try {
                 val response = repository.cancelOrder(orderId)
                 if (response.isSuccessful && response.body()?.success == true) {
-                    _orderDetail.postValue(Resource.Success(response.body()!!.data))
+                    _cancelOrderResult.postValue(Resource.Success(response.body()!!.data))
+                    // Buộc tải lại danh sách
+                    _selectedStatus.value?.let { _selectedStatus.postValue(it) }
                 } else {
-                    _orderDetail.postValue(Resource.Error(parseError(response)))
+                    _cancelOrderResult.postValue(Resource.Error(parseError(response)))
                 }
             } catch (e: Exception) {
-                _orderDetail.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
+                _cancelOrderResult.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
             }
         }
     }
@@ -202,6 +211,8 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
                 val response = repository.checkVnpayCallback(params)
                 if (response.isSuccessful && response.body()?.success == true) {
                     _vnpayCallbackResult.postValue(Resource.Success(response.body()!!))
+                    // Sau khi thanh toán thành công, buộc tải lại danh sách đơn hàng
+                    _selectedStatus.value?.let { _selectedStatus.postValue(it) }
                 } else {
                     _vnpayCallbackResult.postValue(Resource.Error(parseError(response)))
                 }
@@ -234,52 +245,4 @@ class OrderViewModel(private val repository: OrderRepository) : ViewModel() {
         }
     }
 
-    // --- CÁC HÀM CHO REVIEW FORM (API 2, 3, 4) ---
-    fun getReviewDetail(reviewId: String) {
-        _reviewDetail.postValue(Resource.Loading())
-        viewModelScope.launch {
-            try {
-                val response = repository.getReviewDetail(reviewId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    _reviewDetail.postValue(Resource.Success(response.body()!!.data))
-                } else {
-                    _reviewDetail.postValue(Resource.Error(parseError(response)))
-                }
-            } catch (e: Exception) {
-                _reviewDetail.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
-            }
-        }
-    }
-
-    fun createReview(request: CreateReviewRequest) {
-        _reviewSubmitResult.postValue(Resource.Loading())
-        viewModelScope.launch {
-            try {
-                val response = repository.addReview(request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    _reviewSubmitResult.postValue(Resource.Success(response.body()!!.data))
-                } else {
-                    _reviewSubmitResult.postValue(Resource.Error(parseError(response)))
-                }
-            } catch (e: Exception) {
-                _reviewSubmitResult.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
-            }
-        }
-    }
-
-    fun updateReview(reviewId: String, request: UpdateReviewRequest) {
-        _reviewSubmitResult.postValue(Resource.Loading())
-        viewModelScope.launch {
-            try {
-                val response = repository.updateReview(reviewId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    _reviewSubmitResult.postValue(Resource.Success(response.body()!!.data))
-                } else {
-                    _reviewSubmitResult.postValue(Resource.Error(parseError(response)))
-                }
-            } catch (e: Exception) {
-                _reviewSubmitResult.postValue(Resource.Error(e.message ?: "Lỗi mạng"))
-            }
-        }
-    }
 }

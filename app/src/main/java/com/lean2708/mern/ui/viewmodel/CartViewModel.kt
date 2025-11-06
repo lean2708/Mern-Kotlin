@@ -8,6 +8,7 @@ import com.lean2708.mern.data.model.DetailedCartItem
 import com.lean2708.mern.data.model.GenericResponse
 import com.lean2708.mern.repository.CartRepository
 import kotlinx.coroutines.launch
+import android.util.Log
 
 // Lớp này dùng chung cho các kết quả Update/Delete
 sealed class CartActionResource(val message: String? = null) {
@@ -35,10 +36,13 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
     val selectedItems: LiveData<Set<String>> = _selectedItems
 
     init {
-        viewCartProducts()
+        // SỬA LỖI "LOAD MÃI": Xóa hàm "viewCartProducts()" khỏi init()
+        _cartCount.postValue(0)
+        _selectedItems.postValue(emptySet())
     }
 
     // --- READ (Xem giỏ hàng) ---
+    // Hàm này sẽ chỉ được gọi bởi Fragment khi cần (onResume)
     fun viewCartProducts() {
         _cartItems.postValue(Resource.Loading())
         viewModelScope.launch {
@@ -111,6 +115,29 @@ class CartViewModel(private val repository: CartRepository) : ViewModel() {
                 }
             } catch (e: Exception) {
                 _cartActionResult.postValue(CartActionResource.Error("Lỗi mạng khi xóa"))
+            }
+        }
+    }
+
+    // --- HÀM MỚI: XÓA CÁC SẢN PHẨM ĐÃ CHỌN (SAU KHI THANH TOÁN) ---
+    fun clearSelectedItemsFromCart() {
+        val selectedIds = _selectedItems.value
+        if (selectedIds.isNullOrEmpty()) return
+
+        Log.d("CartViewModel", "Đang xóa ${selectedIds.size} sản phẩm đã chọn khỏi giỏ hàng...")
+
+        viewModelScope.launch {
+            try {
+                // Gọi API xóa cho từng item đã chọn
+                selectedIds.forEach { cartId ->
+                    repository.deleteCartProduct(cartId)
+                    Log.d("CartViewModel", "Đã gửi yêu cầu xóa cho: $cartId")
+                }
+                // Sau khi xóa xong, tải lại giỏ hàng và xóa lựa chọn
+                viewCartProducts()
+                clearSelections()
+            } catch (e: Exception) {
+                _cartActionResult.postValue(CartActionResource.Error("Lỗi khi xóa sản phẩm đã mua"))
             }
         }
     }

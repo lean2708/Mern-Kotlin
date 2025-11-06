@@ -7,9 +7,10 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions // Cần import
+import com.bumptech.glide.request.RequestOptions // <-- Import cho circleCrop
+import com.lean2708.mern.R // Import R
 import com.lean2708.mern.data.model.ProductReview
-import com.lean2708.mern.data.model.ReviewUser // Cần import ReviewUser
+import com.lean2708.mern.data.model.ReviewUser
 import com.lean2708.mern.databinding.ItemProductReviewBinding
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -18,6 +19,7 @@ class ReviewAdapter : ListAdapter<ProductReview, ReviewAdapter.ReviewViewHolder>
 
     inner class ReviewViewHolder(private val binding: ItemProductReviewBinding) : RecyclerView.ViewHolder(binding.root) {
 
+        // Khởi tạo Adapter con cho ảnh review (Giả định ReviewImageAdapter đã tồn tại)
         private val reviewImageAdapter = ReviewImageAdapter()
 
         init {
@@ -32,18 +34,21 @@ class ReviewAdapter : ListAdapter<ProductReview, ReviewAdapter.ReviewViewHolder>
         fun bind(review: ProductReview) {
             binding.tvReviewDate.text = review.createdAt.substring(0, 10)
 
-            // --- SỬA LỖI: KHÔNG CẦN ÉP KIỂU NỮA ---
-            // val userDetails = review.user as? ReviewUser (Đã xóa)
+            // ÉP KIỂU 'user' (Any) sang 'ReviewUser' (Object)
+            val userDetails = review.user as? ReviewUser
 
-            binding.tvUserName.text = review.user.name // Truy cập trực tiếp
-            binding.reviewRatingBar.rating = review.rating // API trả về 4.5 (Float)
+            binding.tvUserName.text = userDetails?.name ?: "Người dùng ẩn danh"
+            binding.reviewRatingBar.rating = review.rating
             binding.tvReviewComment.text = review.comment
 
-            // Tải avatar
-            review.user.profilePic?.let { url ->
+            // Tải avatar (Sử dụng userDetails đã ép kiểu)
+            if (userDetails?.profilePic.isNullOrEmpty()) {
+                // Nếu avatar rỗng hoặc null, dùng ảnh mặc định
+                binding.imgAvatar.setImageResource(R.drawable.ic_default_avatar) // <-- Thay bằng drawable avatar mặc định của bạn
+            } else {
                 Glide.with(binding.imgAvatar.context)
-                    .load(url)
-                    .apply(RequestOptions.circleCropTransform()) // Dùng .apply()
+                    .load(userDetails!!.profilePic)
+                    .apply(RequestOptions.circleCropTransform()) // SỬA: Dùng .apply()
                     .into(binding.imgAvatar)
             }
 
