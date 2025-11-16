@@ -6,7 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import com.google.android.material.tabs.TabLayout
 import com.lean2708.mern.R
 import com.lean2708.mern.data.model.Order
@@ -25,7 +25,8 @@ class OrdersFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var orderAdapter: OrderAdapter
 
-    private val viewModel: OrderViewModel by viewModels {
+    // SỬA LỖI: Sử dụng 'activityViewModels' để chia sẻ ViewModel với Activity
+    private val viewModel: OrderViewModel by activityViewModels {
         OrderViewModelFactory(OrderRepository(RetrofitInstance.api))
     }
 
@@ -49,7 +50,6 @@ class OrdersFragment : Fragment() {
 
         binding.tabLayoutStatus.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
-                // Chuyển trạng thái khi tab được chọn
                 val selectedStatusValue = tab.tag as? String ?: OrderStatus.PENDING.value
                 val selectedStatus = OrderStatus.values().firstOrNull { it.value == selectedStatusValue } ?: OrderStatus.PENDING
                 viewModel.setSelectedStatus(selectedStatus)
@@ -58,26 +58,22 @@ class OrdersFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab) {}
         })
 
-        // Chọn mặc định tab đầu tiên (PENDING)
-        binding.tabLayoutStatus.getTabAt(0)?.select()
+        // SỬA: Chọn tab mặc định dựa trên giá trị hiện tại của ViewModel
+        val currentStatusIndex = OrderStatus.values().indexOf(viewModel.selectedStatus.value)
+        binding.tabLayoutStatus.getTabAt(currentStatusIndex)?.select()
     }
 
     private fun setupRecyclerView() {
-        // Khởi tạo Adapter với Listener điều hướng
         orderAdapter = OrderAdapter(onDetailClick = { orderId ->
             navigateToOrderDetail(orderId)
         })
         binding.rvOrders.adapter = orderAdapter
+        binding.rvOrders.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
     }
 
 
     private fun setupObservers() {
-        // Lắng nghe trạng thái hiện tại (chọn tab)
-        viewModel.selectedStatus.observe(viewLifecycleOwner) { status ->
-            // Khi trạng thái thay đổi, ViewModel sẽ tự động gọi fetchOrdersByStatus
-        }
-
-        // Lắng nghe danh sách đơn hàng
+        // Lắng nghe danh sách đơn hàng (từ switchMap)
         viewModel.orders.observe(viewLifecycleOwner) { resource ->
             when (resource) {
                 is Resource.Loading -> binding.progressBarOrders.visibility = View.VISIBLE

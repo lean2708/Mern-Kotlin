@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/colorBackground"
-    tools:context=".ui.orders.OrdersFragment">
+    android:paddingTop="40dp" tools:context=".ui.orders.OrdersFragment">
 
     <TextView
         android:layout_width="match_parent"

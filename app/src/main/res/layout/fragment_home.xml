@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/colorBackground"
-    tools:context=".ui.home.fragment.HomeFragment">
+    android:paddingTop="40dp" tools:context=".ui.home.fragment.HomeFragment">
 
     <EditText
         android:id="@+id/etSearchBox"
@@ -38,7 +38,7 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tools:listitem="@layout/item_home_product_section"
         android:clipToPadding="false"
-        android:paddingTop="8dp" />
+        android:paddingTop="16dp" />
 
     <ProgressBar
         android:id="@+id/progressBar"

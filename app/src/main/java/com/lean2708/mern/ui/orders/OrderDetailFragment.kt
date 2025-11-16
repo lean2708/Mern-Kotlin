@@ -7,15 +7,11 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels // SỬA: Dùng activityViewModels
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.lean2708.mern.R
-import com.lean2708.mern.data.model.Order
-import com.lean2708.mern.data.model.OrderItem
-import com.lean2708.mern.data.model.OrderProduct
-import com.lean2708.mern.data.model.ShippingAddress
-import com.lean2708.mern.data.model.CheckReviewResponse // Cần import
+import com.lean2708.mern.data.model.*
 import com.lean2708.mern.data.network.RetrofitInstance
 import com.lean2708.mern.databinding.FragmentOrderDetailBinding
 import com.lean2708.mern.databinding.ItemOrderDetailProductBinding
@@ -33,13 +29,12 @@ class OrderDetailFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var itemAdapter: OrderItemAdapter
 
-    private val viewModel: OrderViewModel by viewModels {
+    // SỬA LỖI: Sử dụng 'activityViewModels'
+    private val viewModel: OrderViewModel by activityViewModels {
         OrderViewModelFactory(OrderRepository(RetrofitInstance.api))
     }
 
     private var orderId: String? = null
-
-    // Biến lưu trạng thái review
     private var reviewStatusMap: Map<String, CheckReviewResponse> = emptyMap()
     private var currentOrder: Order? = null
 
@@ -82,7 +77,6 @@ class OrderDetailFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        // Thêm callback cho Adapter
         itemAdapter = OrderItemAdapter(
             onReviewClick = { productId, reviewId ->
                 navigateToReviewForm(productId, reviewId)
@@ -90,7 +84,7 @@ class OrderDetailFragment : Fragment() {
         )
         binding.rvOrderItems.adapter = itemAdapter
         binding.rvOrderItems.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
-        binding.rvOrderItems.isNestedScrollingEnabled = false // Ngăn cuộn con
+        binding.rvOrderItems.isNestedScrollingEnabled = false
     }
 
     private fun setupObservers() {
@@ -104,10 +98,6 @@ class OrderDetailFragment : Fragment() {
                         currentOrder = order
                         displayOrderDetails(order)
 
-                        Log.d("ReviewCheck", "Observer: Trạng thái đơn hàng: ${order.orderStatus}")
-                        Log.d("ReviewCheck", "Observer: So sánh với: ${OrderStatus.DELIVERED.value}")
-
-                        // KIỂM TRA NẾU ĐÃ GIAO HÀNG -> GỌI API 1 (Check Review)
                         if (order.orderStatus == OrderStatus.DELIVERED.value) {
                             Log.i("ReviewCheck", "Đơn hàng ĐÃ GIAO HÀNG. Đang gọi API Check Review...")
                             viewModel.checkReviewStatusForItems(order.orderItems)
@@ -129,7 +119,6 @@ class OrderDetailFragment : Fragment() {
             if (resource is Resource.Success) {
                 Log.i("ReviewCheck", "Đã nhận kết quả Check Review. Cập nhật Adapter.")
                 reviewStatusMap = resource.data ?: emptyMap()
-                // Cập nhật lại Adapter với thông tin review
                 itemAdapter.setReviewStatusMap(reviewStatusMap)
                 itemAdapter.notifyDataSetChanged()
             } else if (resource is Resource.Error) {
@@ -157,14 +146,11 @@ class OrderDetailFragment : Fragment() {
 
     private fun displayOrderDetails(order: Order) {
         val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
-
-        // Cập nhật tiêu đề và thông tin
         binding.tvOrderId.text = "Mã đơn hàng: #${order._id.takeLast(10)}"
         binding.tvOrderStatus.text = "Trạng thái: ${OrderStatus.fromValue(order.orderStatus)}"
         binding.tvPaymentMethod.text = "Phương thức thanh toán: ${order.paymentMethod}"
         binding.tvTotalAmount.text = "Tổng thanh toán: ${formatter.format(order.totalPrice)}"
 
-        // Xử lý trường ShippingAddress (Object hoặc String ID)
         val shippingAddressObject = order.shippingAddress as? ShippingAddress
         if (shippingAddressObject != null) {
             binding.tvAddressDetail.text = shippingAddressObject.addressDetail
@@ -175,12 +161,10 @@ class OrderDetailFragment : Fragment() {
             binding.tvPhone.text = "SĐT: N/A"
         }
 
-        // Cập nhật danh sách sản phẩm (Truyền trạng thái vào Adapter)
         itemAdapter.setOrderStatus(order.orderStatus)
-        itemAdapter.setReviewStatusMap(reviewStatusMap) // Gán map review hiện tại
+        itemAdapter.setReviewStatusMap(reviewStatusMap)
         itemAdapter.submitList(order.orderItems)
 
-        // Hiển thị/Ẩn nút HỦY ĐƠN HÀNG (Chỉ khi PENDING)
         val isPending = order.orderStatus == OrderStatus.PENDING.value
         binding.bottomCancelLayout.visibility = if (isPending) View.VISIBLE else View.GONE
 
@@ -189,13 +173,9 @@ class OrderDetailFragment : Fragment() {
         }
     }
 
-    // Điều hướng đến Form Đánh giá
     private fun navigateToReviewForm(productId: String, reviewId: String?) {
-        val reviewFragment = ReviewFormFragment.newInstance(productId, reviewId)
-        parentFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, reviewFragment)
-            .addToBackStack(null)
-            .commit()
+        // TODO: Tạo ReviewFormFragment
+        Toast.makeText(requireContext(), "Mở Form Review cho Product: $productId (ReviewID: $reviewId)", Toast.LENGTH_SHORT).show()
     }
 
     private fun confirmCancelOrder(id: String) {
