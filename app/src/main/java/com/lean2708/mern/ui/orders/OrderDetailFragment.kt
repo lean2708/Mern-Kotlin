@@ -174,8 +174,12 @@ class OrderDetailFragment : Fragment() {
     }
 
     private fun navigateToReviewForm(productId: String, reviewId: String?) {
-        // TODO: Tạo ReviewFormFragment
-        Toast.makeText(requireContext(), "Mở Form Review cho Product: $productId (ReviewID: $reviewId)", Toast.LENGTH_SHORT).show()
+        val reviewFragment = ReviewFormFragment.newInstance(productId, reviewId)
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, reviewFragment)
+            .addToBackStack(null) // Cho phép nhấn Back
+            .commit()
     }
 
     private fun confirmCancelOrder(id: String) {
